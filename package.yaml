@@ -1,0 +1,31 @@
+name:                liquid-structures
+version:             0.1.0.0
+github:              "jackastner/liquid-structures"
+license:             GPL-3
+author:              "John Kastner"
+maintainer:          "john.h.kastner@gmail.com"
+
+extra-source-files:
+- README.md
+
+# To avoid duplicated efforts in documentation and dealing with the
+# complications of embedding Haddock markup inside cabal files, it is
+# common to point users to the README.md file.
+description:         Please see the README on GitHub at <https://github.com/jackastner/liquid-structures#readme>
+
+dependencies:
+- base >= 4.7 && < 5
+
+library:
+  source-dirs: src
+
+tests:
+  liquid-structures-test:
+    main:                Spec.hs
+    source-dirs:         test
+    ghc-options:
+    - -threaded
+    - -rtsopts
+    - -with-rtsopts=-N
+    dependencies:
+    - liquid-structures
