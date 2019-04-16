@@ -29,17 +29,16 @@ data BankersQueue a = BQ {
   r    :: [a]
 } deriving Show
 
-{-@ predicate OfSize Q N = (lenf Q) + (lenr Q) == N @-}
-
-{-@ type BQ_NE a        = {q : BankersQueue a | not ( OfSize q 0) } @-}
-{-@ type BQ_E a         = {q : BankersQueue a | OfSize q 0 } @-} 
+{-@ measure qlen @-}
+qlen :: BankersQueue a -> Int
+qlen (BQ f _ r _) = f + r
 
 {-@ check ::
     vlenf : Nat              ->
     {v:[_] | len v == vlenf} ->
     vlenr : Nat              ->                    
     {v:[_] | len v == vlenr} ->
-    {q:BankersQueue _ | OfSize q (vlenf + vlenr)}
+    {q:BankersQueue _ | qlen q == (vlenf + vlenr)}
   @-}
 check :: Int -> [a] -> Int -> [a] -> BankersQueue a
 check lenf f lenr r =
@@ -48,31 +47,31 @@ check lenf f lenr r =
   else
     BQ (lenf + lenr) (f ++ (reverse r)) 0 []
 
-{-@ empty :: BQ_E _ @-}
+{-@ empty :: {q:BankersQueue _ | qlen q == 0} @-}
 empty :: BankersQueue a
 empty = BQ 0 [] 0 []
 
-{-@ isEmpty :: q:BankersQueue _ -> {b:Bool | b <=> OfSize q 0} @-}
+{-@ isEmpty :: q:BankersQueue _ -> {b:Bool | b <=> qlen q == 0} @-}
 isEmpty :: BankersQueue a -> Bool
 isEmpty (BQ lenf f lenr r) = (lenf == 0)
 
 {-@ snoc :: forall a.
     q : BankersQueue a ->
     e : a              ->
-    {q' : BankersQueue a | (lenf q') + (lenr q') == (lenf q) + (lenr q) + 1}
+    {q' : BankersQueue a | qlen q' == (qlen q) + 1}
   @-}
 snoc :: BankersQueue a -> a -> BankersQueue a
 snoc (BQ lenf f lenr r) x = check lenf f (lenr + 1) (x : r)
 
 {-@ head :: forall a.
-    q : BQ_NE a ->
+    {q : BankersQueue a | qlen q /= 0} ->
     a
   @-}
 head :: BankersQueue a -> a
 head (BQ lenf (x : f') lenr r) = x
 
 {-@ tail :: forall a.
-    q : BQ_NE a ->
-    {q' : BankersQueue a | (lenf q') + (lenr q') == (lenf q) + (lenr q) - 1}
+    {q : BankersQueue a | qlen q /= 0} ->
+    {q' : BankersQueue a | qlen q' == (qlen q) - 1}
   @-}
 tail (BQ lenf (x : f') lenr r) = check (lenf - 1) f' lenr r
