@@ -15,6 +15,7 @@ module Queue.BankersQueue where
 import Prelude hiding (head, tail)
 
 import Queue.Queue
+import Data.Set
 
 {-@ data BankersQueue a = BQ {
       lenf :: Nat,
@@ -49,6 +50,10 @@ check lenf f lenr r =
 instance Queue BankersQueue where
   {-@ instance measure qlen :: BQ a -> Int
       qlen (BQ f _ r _) = f + r
+    @-}
+
+  {-@ instance measure qelts :: BQ a -> Set a
+      qelts (BQ _ f _ r) = union (listElts f) (listElts r)
     @-}
 
   empty = BQ 0 [] 0 []
