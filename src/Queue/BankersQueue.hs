@@ -24,6 +24,7 @@ import Queue.Queue
     }
   @-}
 
+type BQ a = BankersQueue a
 data BankersQueue a = BQ {
   lenf :: Int,
   f    :: [a],
@@ -36,9 +37,9 @@ data BankersQueue a = BQ {
     {v:[_] | len v == vlenf} ->
     vlenr : Nat              ->                    
     {v:[_] | len v == vlenr} ->
-    {q:BankersQueue _ | qlen q == (vlenf + vlenr)}
+    {q:BQ _ | qlen q == (vlenf + vlenr)}
   @-}
-check :: Int -> [a] -> Int -> [a] -> BankersQueue a
+check :: Int -> [a] -> Int -> [a] -> BQ a
 check lenf f lenr r =
   if lenr <= lenf then
     BQ lenf f lenr r
@@ -46,7 +47,7 @@ check lenf f lenr r =
     BQ (lenf + lenr) (f ++ (reverse r)) 0 []
 
 instance Queue BankersQueue where
-  {-@ instance measure qlen :: BankersQueue a -> Int
+  {-@ instance measure qlen :: BQ a -> Int
       qlen (BQ f _ r _) = f + r
     @-}
 
