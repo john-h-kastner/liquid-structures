@@ -53,7 +53,7 @@ qhead bq = head
 {-@ instance measure qtail :: BQ a -> BQ a @-}
 {-@ ignore qtail @-}
 qtail bq = tail
-
+ 
 instance Queue BankersQueue where
   {-@ instance measure qlen :: BQ a -> {v:Int | v >= 0}
       qlen (BQ f _ r _) = f + r
