@@ -46,8 +46,16 @@ check lenf f lenr r =
   else
     BQ (lenf + lenr) (f ++ (reverse r)) 0 []
 
+{-@ instance measure qhead :: BQ a -> a @-}
+{-@ ignore qhead @-}
+qhead bq = head
+
+{-@ instance measure qtail :: BQ a -> BQ a @-}
+{-@ ignore qtail @-}
+qtail bq = tail
+
 instance Queue BankersQueue where
-  {-@ instance measure qlen :: BQ a -> Int
+  {-@ instance measure qlen :: BQ a -> {v:Int | v >= 0}
       qlen (BQ f _ r _) = f + r
     @-}
 
