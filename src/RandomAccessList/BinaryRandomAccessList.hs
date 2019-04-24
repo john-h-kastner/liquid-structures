@@ -5,7 +5,7 @@ module RandomAccessList.BinaryRandomAccessList where
 
 import Prelude hiding (head, tail, lookup)
 
-import RandomAccessList.RandomAccessList
+--import RandomAccessList.RandomAccessList
 
 {-@ data Tree a =
       Leaf a |
@@ -17,7 +17,12 @@ import RandomAccessList.RandomAccessList
 
 data Tree a = Leaf a | Node (Tree a) (Tree a) Int deriving Eq
 data Digit a = Zero | One (Tree a) deriving Eq
+
 data BinaryList a = BL [Digit a] deriving Eq
+
+{-@ data CheckedBinaryList a =
+      CBL (lst :: {v:[Digit a]}
+data CheckedBinaryList a = CBL [Digit a] deriving Eq
 
 {-@ measure blList @-}
 blList (BL l) = l
@@ -25,12 +30,18 @@ blList (BL l) = l
 {- bogus definitions for leaf -}
 
 {-@ measure leftChild @-}
+{-@ leftChild :: forall a.
+      {v:Tree a | size v > 1} ->
+      Tree a
+  @-}
 leftChild (Node l _ _) = l
-leftChild leaf         = leaf
 
 {-@ measure rightChild @-}
+{-@ rightChild :: forall a.
+      {v:Tree a | size v > 1} ->
+      Tree a
+  @-}
 rightChild (Node _ r _) = r
-rightChild leaf         = leaf
 
 {-@ measure size @-}
 {-@ size :: forall a.
@@ -195,37 +206,46 @@ lemma_tailNotEmpty (BL (Zero:t)) b0 b1 = True
 --      / [blLen ds]
 --  @-}
 
-{-@ unconsTree :: forall a. Eq a =>
-      ds:{v:BinaryList a | not (blEmpty v)} ->
-      (Tree a, BinaryList a)
-      / [blLen ds]
-  @-}
-unconsTree :: Eq a => BinaryList a -> (Tree a, BinaryList a)
-unconsTree (BL [One t])        = (t, BL [])
-unconsTree (BL ((One t) : ts)) = (t, BL (Zero : ts))
-unconsTree (BL (Zero : ts)) =
-  {- I've got this working for now but, am leaving my previouse commment
-   - in case this breaks again. -}
-  {- I *think* I know why this doesn't check. unconsTree requires that its argument
-   - list is non-empty but, the tail of a non-empty list in general can be
-   - empty. In this case, 'non-empty' means both not empty in the usual sense
-   - and also that the list contains at least one 'One' element. Since the head
-   - of this list is 'Zero' in this case, the tail of the list must be at least
-   - a singleton list containing a 'One'. If I can prove this it Liquid, this
-   - should work. -}
-  let (t,bl) = (flip const) (lemma_tailNotEmpty (BL (Zero:ts)) True True) $ unconsTree (BL ts) in
-    (leftChild t, BL (One (rightChild t) : (blList bl)))
+--{-@ unconsTree :: forall a. Eq a =>
+--      ds:{v:BinaryList a | not (blEmpty v)} ->
+--      (Tree a, BinaryList a)
+--      / [blLen ds]
+--  @-}
+--unconsTree :: Eq a => BinaryList a -> (Tree a, BinaryList a)
+--unconsTree (BL [One t])        = (t, BL [])
+--unconsTree (BL ((One t) : ts)) = (t, BL (Zero : ts))
+--unconsTree (BL (Zero : ts)) =
+--  {- I've got this working for now but, am leaving my previouse commment
+--   - in case this breaks again. -}
+--  {- I *think* I know why this doesn't check. unconsTree requires that its argument
+--   - list is non-empty but, the tail of a non-empty list in general can be
+--   - empty. In this case, 'non-empty' means both not empty in the usual sense
+--   - and also that the list contains at least one 'One' element. Since the head
+--   - of this list is 'Zero' in this case, the tail of the list must be at least
+--   - a singleton list containing a 'One'. If I can prove this it Liquid, this
+--   - should work. -}
+--
+--  {- OK, so this is kind of working but, only for a not-so-great definition of `leftChild` and `rightChild`.
+--   - In need to show that `t` is not a `Leaf`. I think that the binary list should the property that an element is
+--   - a leaf if and only if it is the first element.  -}
+--  let (t,bl) = (flip const) (lemma_tailNotEmpty (BL (Zero:ts)) True True) $ unconsTree (BL ts) in
+--    (leftChild t, BL (One (rightChild t) : (blList bl)))
+--
+--{- for some reason, this was being rejected by liquid. Not sure why it's bogus though -}
+----  let ((Node t1 t2 _), (BL ts')) = (flip const) (lemma_tailNotEmpty (BL (Zero:ts)) True True) $ unconsTree (BL ts) in
+----    (t1, BL ((One t2) : ts'))
 
-{- for some reason, this was being rejected by liquid. Not sure why it's bogus though -}
---  let ((Node t1 t2 _), (BL ts')) = (flip const) (lemma_tailNotEmpty (BL (Zero:ts)) True True) $ unconsTree (BL ts) in
---    (t1, BL ((One t2) : ts'))
+{-------------------------------------------------------
+ -------- Functions for typeclass instance -------------
+ ------------------------------------------------------}
+ 
+empty = BL []
+isEmpty (BL ts) = null ts
 
+cons x (BL ts) = BL (consTree (Leaf x) ts)
 
-
-
-
-
-
-
-
-{-filler-}
+--{-@ head :: forall a. Eq a =>
+--      {v:BinaryList a | not (blEmpty v)} ->
+--      a
+--  @-}
+--head bl = let (Leaf x, _) = unconsTree bl in x
