@@ -74,7 +74,7 @@ test = BL [One (Leaf 1)]
 test' :: BinaryList Int
 test' = BL []
 
-{-@ test'' ::  {v:BinaryList Int | blSize v == 0} @-}
+{-@ test'' ::  {v:BinaryList Int | (not (blIsNil v)) && blSize v == 0} @-}
 test'' :: BinaryList Int
 test'' = BL [Zero]
 
@@ -82,25 +82,99 @@ test'' = BL [Zero]
 test''' :: BinaryList Int
 test''' = BL [Zero, One (Leaf 1), Zero, One (Node (Leaf 1) (Leaf 2) 2), Zero]
 
-{-@ lemma_BLInject :: forall a.
-      bl0 : BinaryList a ->
-      l : {v:[Digit a] | (BL l) == bl0} ->
-      {b:Bool | (BL l) == bl0}
+{-@ measure blEmpty @-}
+{-@ blEmpty :: forall a. Eq a =>
+      bl:BinaryList a ->
+      Bool
+      / [blLen bl]
   @-}
-lemma_BLInject bl0 l = (BL l) == bl0
+blEmpty :: Eq a => BinaryList a -> Bool
+blEmpty (BL [])    = True
+blEmpty (BL (h:t)) = (h == Zero) && (blEmpty (BL t))
 
-{-@ reflect cons_list @-}
-cons_list x xs = x : xs
+{-@ measure blIsNil @-}
+blIsNil :: BinaryList a -> Bool
+blIsNil (BL []) = True
+blIsNil _       = False
 
-{- ':' is being interpreted as 'has type' instead of 'cons' -}
-{-@ lemma_RemoveZero :: forall a.
-    bl0 : {v:BinaryList a | blSize v > 0} ->
-    l0 : {v:[Digit a] | (BL l0) == bl0} ->
-    bl1 : BinaryList a ->
-    l1 : {v:[Digit a] | (BL l1) == bl1 && (cons_list Zero l1) == l0} ->
-    {b:Bool | (blSize l1) > 0} @-}
-lemma_RemoveZero :: BinaryList a -> [Digit a] -> BinaryList a -> [Digit a] -> Bool
-lemma_RemoveZero bl0 l0 bl1 l1 = True
+{-@ lemma_emptyThenZeros :: forall a. Eq a =>
+      bl:{v:BinaryList a | blEmpty v} ->
+      {ds:[{d:Digit a | d == Zero}] | (BL ds) == bl}
+      / [blLen bl]
+  @-}
+lemma_emptyThenZeros :: Eq a => BinaryList a -> [Digit a]
+lemma_emptyThenZeros (BL []) = []
+lemma_emptyThenZeros (BL (Zero:ds)) = Zero:(lemma_emptyThenZeros (BL ds))
+
+{-@ lemma_notEmptyThenNotNil :: forall a. Eq a =>
+      bl:{v:BinaryList a | not (blEmpty v)} ->
+      {ds:[Digit a] | (BL ds) == bl && (not (blIsNil bl))}
+      / [blLen bl]
+  @-}
+lemma_notEmptyThenNotNil :: Eq a => BinaryList a -> [Digit a]
+lemma_notEmptyThenNotNil (BL (d:ds)) = d:ds
+
+
+{- forall binary lists bl, ~ (blEmpty bl) -> (bl /= BL []) -}
+{-@ lemma_notEmptyThenNotNil' :: forall a. Eq a =>
+      bl:BinaryList a ->
+      {b:Bool | not (blEmpty bl)} ->
+      {b:Bool | not (blIsNil bl)}
+  @-}
+lemma_notEmptyThenNotNil' :: Eq a => BinaryList a -> Bool -> Bool
+lemma_notEmptyThenNotNil' (BL ds) _ = True
+
+{-@ lemma_sizeNotNil :: forall a. Eq a =>
+      bl:BinaryList a ->
+      {b:Bool | blSize (bl) > 0} ->
+      {b:Bool | not (blIsNil bl)} @-}
+lemma_sizeNotNil :: Eq a => BinaryList a -> Bool -> Bool 
+lemma_sizeNotNil (BL (d:ds)) _ = True
+
+{-@ blHead :: forall a.
+      bl:{v:BinaryList a | not (blIsNil bl)} ->
+      Digit a
+  @-}
+blHead :: BinaryList a -> Digit a
+blHead (BL (h:_)) = h
+
+{-@ blHead' :: forall a.
+      bl:{v:BinaryList a | (blSize bl) > 0} ->
+      Digit a
+  @-}
+blHead' :: BinaryList a -> Digit a
+blHead' (BL (h:_)) = h
+
+{-@ measure blHead'' @-}
+{-@ blHead'' :: forall a.
+      bl:{v:BinaryList a | (not (blEmpty bl)) || (not (blIsNil bl)) || (blSize bl) > 0} ->
+      Digit a
+  @-}
+blHead'' :: BinaryList a -> Digit a
+blHead'' (BL (h:_)) = h
+
+head_test = (flip const) (lemma_sizeNotNil test''' True) $ blHead test'''
+head_test' = blHead' test'''
+head_test'' = blHead'' test''
+
+{-@ measure blTail @-}
+{-@ blTail :: forall a.
+      bl:{v:BinaryList a | (not (blEmpty bl)) || (not (blIsNil bl)) || (blSize bl) > 0} ->
+      BinaryList a
+  @-}
+blTail :: BinaryList a -> BinaryList a
+blTail (BL (_:t)) = BL t
+
+{- forall binary lists bl, ~ (blEmpty bl) /\ (head bl == Zero) -> ~(blEmpty (tail bl)) -}
+{- TBH not sure why this checks but, I'll take it. @-}
+{-@ lemma_tailNotEmpty :: forall a. Eq a =>
+      bl:BinaryList a ->
+      {b:Bool | not (blEmpty bl)} ->
+      {b:Bool | (blHead'' bl) == Zero} ->
+      {b:Bool | not (blEmpty (blTail bl))}
+  @-}
+lemma_tailNotEmpty :: Eq a => BinaryList a -> Bool -> Bool -> Bool
+lemma_tailNotEmpty (BL (Zero:t)) b0 b1 = True
 
 --{-@ unconsTree :: forall a.
 --      ds:{v:BinaryList a | blSize v > 0} ->
@@ -108,15 +182,21 @@ lemma_RemoveZero bl0 l0 bl1 l1 = True
 --      / [blLen ds]
 --  @-}
 
---{-@ unconsTree :: forall a.
---      ds:{v:BinaryList a | blSize v > 0} ->
---      (Tree a, BinaryList a)
---      / [blLen ds]
---  @-}
---unconsTree :: BinaryList a -> (Tree a, BinaryList a)
---unconsTree (BL [One t])        = (t,BL [])
---unconsTree (BL ((One t) : ts)) = (t, BL (Zero : ts))
---unconsTree (BL (Zero : ts)) =
---  let ((Node t1 t2 _), (BL ts')) = unconsTree (BL ts) in 
---    (t1, BL ((One t2) : ts'))
---
+{-@ unconsTree :: forall a. Eq a =>
+      ds:{v:BinaryList a | not (blEmpty v)} ->
+      (Tree a, BinaryList a)
+      / [blLen ds]
+  @-}
+unconsTree :: Eq a => BinaryList a -> (Tree a, BinaryList a)
+unconsTree (BL [One t])        = (t, BL [])
+unconsTree (BL ((One t) : ts)) = (t, BL (Zero : ts))
+unconsTree (BL (Zero : ts)) =
+  {- I *think* I know why this doesn't check. unconsTree requires that its argument
+   - list is non-empty but, the tail of a non-empty list in general can be
+   - empty. In this case, 'non-empty' means both not empty in the usual sense
+   - and also that the list contains at least one 'One' element. Since the head
+   - of this list is 'Zero' in this case, the tail of the list must be at least
+   - a singleton list containing a 'One'. If I can prove this it Liquid, this
+   - should work. -}
+  let ((Node t1 t2 _), (BL ts')) = (flip const) (lemma_tailNotEmpty (BL (Zero:ts)) True True) $ unconsTree (BL ts) in 
+    (t1, BL ((One t2) : ts'))
