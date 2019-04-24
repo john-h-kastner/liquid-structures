@@ -19,6 +19,19 @@ data Tree a = Leaf a | Node (Tree a) (Tree a) Int deriving Eq
 data Digit a = Zero | One (Tree a) deriving Eq
 data BinaryList a = BL [Digit a] deriving Eq
 
+{-@ measure blList @-}
+blList (BL l) = l
+
+{- bogus definitions for leaf -}
+
+{-@ measure leftChild @-}
+leftChild (Node l _ _) = l
+leftChild leaf         = leaf
+
+{-@ measure rightChild @-}
+rightChild (Node _ r _) = r
+rightChild leaf         = leaf
+
 {-@ measure size @-}
 {-@ size :: forall a.
       Tree a -> 
@@ -191,6 +204,8 @@ unconsTree :: Eq a => BinaryList a -> (Tree a, BinaryList a)
 unconsTree (BL [One t])        = (t, BL [])
 unconsTree (BL ((One t) : ts)) = (t, BL (Zero : ts))
 unconsTree (BL (Zero : ts)) =
+  {- I've got this working for now but, am leaving my previouse commment
+   - in case this breaks again. -}
   {- I *think* I know why this doesn't check. unconsTree requires that its argument
    - list is non-empty but, the tail of a non-empty list in general can be
    - empty. In this case, 'non-empty' means both not empty in the usual sense
@@ -198,5 +213,19 @@ unconsTree (BL (Zero : ts)) =
    - of this list is 'Zero' in this case, the tail of the list must be at least
    - a singleton list containing a 'One'. If I can prove this it Liquid, this
    - should work. -}
-  let ((Node t1 t2 _), (BL ts')) = (flip const) (lemma_tailNotEmpty (BL (Zero:ts)) True True) $ unconsTree (BL ts) in 
-    (t1, BL ((One t2) : ts'))
+  let (t,bl) = (flip const) (lemma_tailNotEmpty (BL (Zero:ts)) True True) $ unconsTree (BL ts) in
+    (leftChild t, BL (One (rightChild t) : (blList bl)))
+
+{- for some reason, this was being rejected by liquid. Not sure why it's bogus though -}
+--  let ((Node t1 t2 _), (BL ts')) = (flip const) (lemma_tailNotEmpty (BL (Zero:ts)) True True) $ unconsTree (BL ts) in
+--    (t1, BL ((One t2) : ts'))
+
+
+
+
+
+
+
+
+
+{-filler-}
