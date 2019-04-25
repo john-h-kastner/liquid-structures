@@ -77,6 +77,56 @@ at the moment they only ensure that the prefix list is shorter than the front
 list and that the list is nonempty when the front list is nonempty. Hopefully
 this will be fixed before I am finished with this project.
 
+# Random-Access Lists
+
+A random-access list as presented in *Purely Functional Data Structures* is an
+extension of the usual cons-list that supports lookup and update functions like
+those you would expect to see for a traditional array. While for a queue it
+sufficed to know that the structure was not empty before retrieving the next
+element, a random access list must verify that a requested index is with the
+bounds of the list before any lookup or update operation. This requirement is
+encoded in the refinement types for these functions.
+
+The interface used for random access list is given below and is also available
+in the [relevant source file](src/RandomAccessList/RandomAccessList.hs).
+
+```haskell
+{-@ class measure rlen :: forall a. a -> {v:Int | v >= 0} @-}
+{-@ class RandomAccessList r where
+      empty   :: forall a.
+        {r:(r a) | 0 == rlen r}
+      isEmpty :: forall a.
+        r:(r a) -> {v:Bool | v <=> (0 == rlen r)}
+
+      cons    :: forall a.
+        a -> r0:r a -> {r1:r a | (rlen r1) == (rlen r0) + 1}
+      head    :: forall a.
+        {r:r a | rlen r /= 0} -> a
+      tail    :: forall a.
+        {r0:r a | rlen r0 /= 0} -> {r1:r a | (rlen r1) == (rlen r0) - 1}
+
+      lookup :: forall a.
+        r:r a -> {i:Nat | i < rlen r} -> a
+      update :: forall a.
+        r0:r a -> {i:Nat | i < rlen r0} -> a -> {r1:r a | (rlen r1) == (rlen r1)}
+  @-}
+```
+
+## [Simple Random-Access List](src/RandomAccessList/SimpleRandomAccessList.hs)
+
+This implementation is not one given in the book. It is a very simple implementation
+that I wrote to practice using LiquidHaskell and to quickly check that the
+refinement types I wrote for the `RandomAccessList` type class were reasonable.
+
+The data type used for this implementation is a wrapper around Haskells List type
+and the functions are implemented as operations on the internal list. No additional
+refinements are given to the constructor as there are no invariants that must be
+maintained.
+
+```haskell
+data SimpleRandomAccessList a = SRAL [a]
+```
+
 [1]: http://www.cs.cmu.edu/~rwh/theses/okasaki.pdf
 [2]: https://ucsd-progsys.github.io/liquidhaskell-blog/
 [3]: https://ucsd-progsys.github.io/liquidhaskell-blog/2016/09/18/refinement-reflection.lhs/
