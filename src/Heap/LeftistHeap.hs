@@ -72,20 +72,36 @@ isEmpty _ = False
   @-}
 findMin (T _ _ _ v) = v
 
+{- forall x y h. x <= y -> IsMin y h0 -> IsMin x h0 -}
+
+{-@ test :: forall a. Ord a => x : a -> y : a -> h : LH a ->
+      {b:Bool | x <= y} ->
+      {b:Bool | IsMin y h} ->
+      {b:Bool | IsMin x h}
+  @-}
+test :: Ord a => a -> a -> LH a -> Bool -> Bool -> Bool
+test _ _ _ _ _ = True
+
 
 {-@ merge :: forall a. Ord a =>
+      e:a ->
       h0:LH a ->
       h1:LH a ->
-      {h2:LH a | IsEmptyLH h2 || (IsMin (hmin h2) h0 && IsMin (hmin h2) h1)}
+      {h2:LH a | IsMin e h0 ==> IsMin e h1 ==> IsMin e h2}
   @-}
+      --{h2:LH a | IsEmptyLH h2 || (IsMin (hmin h2) h0 && IsMin (hmin h2) h1)}
       --{h2:LH a | (hsize h2) == (hsize h0) + (hsize h1)}
-merge :: Ord a => LH a -> LH a -> LH a
-merge h E = h
-merge E h = h
-merge h1@(T _ a1 b1 x)
-      h2@(T _ a2 b2 y) 
-      | x <= y    = makeT a1 (merge b1 h2) x
-      | otherwise = makeT a2 (merge h1 b2) y
+merge :: Ord a => a -> LH a -> LH a -> LH a
+merge _ h E = h
+merge _ E h = h
+merge e
+      h1@(T _ a1 b1 x)
+      h2@(T _ a2 b2 y)
+      | x <= y    = makeT a1 (merge x b1 h2) x
+      | otherwise = makeT a2 (merge y h1 b2) y
+--
+--      | x <= y    = makeT a1 (merge b1 h2) x
+--      | otherwise = makeT a2 (merge h1 b2) y
 
 
       {- need: IsMin x (merge b1 h2) -}
@@ -99,6 +115,3 @@ merge h1@(T _ a1 b1 x)
 --      {h1: h a | (hsize h1) == (hsize h0) - 1}
 --  @-}
 --deleteMin (T _ r l _) = merge r l
-
-
-
