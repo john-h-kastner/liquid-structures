@@ -92,31 +92,40 @@ lemma_LeMin _ _ _ _ _ = True
  - Possible equivalent formulation: The minimum of the output heap is equal to
  - the minimum of one of the input heaps.
  -}
-{-@ merge :: forall a. Ord a =>
+{-@ merge_aux :: forall a. Ord a =>
       e:a ->
       h0:LH a ->
       h1:LH a ->
       {h2:LH a | (hsize h2 == hsize h0 + hsize h1) &&
                  (IsMin e h0 ==> IsMin e h1 ==> IsMin e h2)}
   @-}
-merge :: Ord a => a -> LH a -> LH a -> LH a
-merge _ h E = h
-merge _ E h = h
-merge e
+merge_aux :: Ord a => a -> LH a -> LH a -> LH a
+merge_aux _ h E = h
+merge_aux _ E h = h
+merge_aux e
       h1@(T _ a1 b1 x)
       h2@(T _ a2 b2 y)
-      | x <= y    = makeT a1 (merge x b1 h2) x
-      | otherwise = makeT a2 (merge y h1 b2) y
+      | x <= y    = makeT a1 (merge_aux x b1 h2) x
+      | otherwise = makeT a2 (merge_aux y h1 b2) y
+
+{-@ merge :: forall a. Ord a =>
+      h0:LH a ->
+      h1:LH a ->
+      {h2:LH a | (hsize h2 == hsize h0 + hsize h1)}
+  @-}
+merge E E = E
+merge h0@(T _ _ _ x) h1 = merge_aux x h0 h1
+merge h0 h1@(T _ _ _ y) = merge_aux y h0 h1
 
 {-@ insert :: forall a. Ord a =>
       a ->
       h0:LH a ->
       {h1:LH a | hsize h1 == hsize h0 + 1}
   @-}
-insert v h = merge v (T 1 E E v) h
+insert v h = merge (T 1 E E v) h
 
 {-@ deleteMin :: forall a. Ord a =>
       {h0:LH a | hsize h0 /= 0} ->
       {h1:LH a | hsize h1 == hsize h0 - 1}
   @-}
-deleteMin (T _ r l v) = merge v r l
+deleteMin (T _ r l v) = merge r l
