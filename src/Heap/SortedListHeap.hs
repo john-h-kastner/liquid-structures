@@ -2,11 +2,19 @@ module Heap.SortedListHeap where
 
 {-@ data SortedListHeap a =
       Nil |
-      Cons (t :: SLH a) (v :: {vv:a | IsMin vv t})
+      Cons {
+        t :: SLH a,
+        h :: {v:a | IsMin v t}
+      }
   @-}
 
 type SLH a = SortedListHeap a
-data SortedListHeap a = Nil | Cons (SLH a) a
+data SortedListHeap a =
+  Nil |
+  Cons {
+    t :: SLH a,
+    h :: a
+  }
 
 {-@ predicate IsEmptyLH H = hsize H == 0 @-}
 {-@ predicate IsMin N H = IsEmptyLH H || N <= (hmin H) @-}
