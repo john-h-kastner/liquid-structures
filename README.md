@@ -4,7 +4,9 @@ This project contains Haskell implementations of data structures from Chris
 Okasaki's Book [Purely Functional Data Structures][1] with invariants statically
 checked using [LiquidHaskell][2]. The implementations are based on the those
 provided in the appendix of Okasaki's book but, in many cases they have been
-modified to facilitate the addition of refinement types. Beyond simply ensuring
+modified to facilitate the addition of refinement types. There are also some
+structures that were not taken from the book. These tend to be simpler structures
+used to experiment with and learn LiquidHaskell.  Beyond simply ensuring
 invariants, this project also attempts to use LiquidHaskell as a
 [theorem prover][3] to prove other interesting properties.
 
