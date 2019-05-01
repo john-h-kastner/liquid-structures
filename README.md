@@ -79,6 +79,58 @@ at the moment they only ensure that the prefix list is shorter than the front
 list and that the list is nonempty when the front list is nonempty. Hopefully
 this will be fixed before I am finished with this project.
 
+# [Sets](src/Set/Set.hs)
+
+Okasaki's book presents a very simple interface for sets. Only insertion and a
+membership predicate are required. This could, of course, be extended to support
+other common functions over sets.
+
+```haskell
+{-@ class Set s a where
+      empty  ::
+        {v:s a | Set_emp (setElts v)}
+      insert ::
+        e:a -> v:s a -> {vv: s a | (setElts vv) == Set_cup (Set_sng e) (setElts v)}
+      member ::
+        e:a -> v:s a -> Bool
+  @-}
+```
+
+The refinement types for `empty` and `insert` encode these operations in terms
+of functions understood by LiquidHaskell's SMT solver. At the moment, the type
+of member is not refined. I want the type to ensure that member returns true
+if and only if the element is in the set but, I have not been able to make a
+set implementation check using such a refinement type.
+
+```haskell
+member :: e:a -> v:s a -> {b:Bool | b <=> Set_mem e (setElts b)}
+```
+
+## [Unbalanced Set](src/Set/Set.hs)
+
+Unbalanced set implements the set interface using an unbalanced binary search
+tree. Since it is a binary search tree, the invariant checked in the constructor
+should be that the value at an interior node is greater than the value at its
+left child and less than the value at its right child.
+
+This is accomplished using predicates `IsGT` and `IsLT`. These predicates first
+check that a tree is not empty then they retrieve the value and the node so that
+it can be compared against some other value.
+
+```haskell
+{-@ data UnbalancedSet a =
+      E |
+      T {
+        val   :: a,
+        left  :: {v : UnbalancedSet a | IsGT val v},
+        right :: {v : UnbalancedSet a | IsLT val v}
+      }
+@-}
+
+{-@ predicate IsGT N S = isEmpty S || N > (usTop S) @-}
+{-@ predicate IsLT N S = isEmpty S || N < (usTop S) @-}
+```
+
 # Heaps
 
 The refinement types for the `Heap` typeclass would ideally ensure both size
