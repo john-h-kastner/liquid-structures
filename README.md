@@ -16,7 +16,13 @@ The first and perhaps simplest abstract data type presented in the book is the
 first-in-first-out queue. The first queue implementation, the batched queue, is
 used as a [case study][4] in the LiquidHaskell tutorial, so I have opted not to
 reproduce it here. I have included two similar queues: the banker's and physicist's
-queue. 
+queue.
+
+The interface implemented by each concrete queue provides functions for adding
+to the end, reading and removing from the front, obtaining an empty queue and
+testing if a given queue is empty. The refinement types for these functions are
+used to track the length of a queue and to ensure that `head` and `tail` are
+never called on empty queues.
 
 ```haskell
 {-@ class measure qlen :: forall a. a -> Int @-}
@@ -36,11 +42,12 @@ queue.
 
 ## [Banker's Queue](src/Queue/BankersQueue.hs)
 
-The banker's queue is designed to enable using the banker's method for analysing 
-amortized cost in a lazy data structure. To this end, for each of the two lists
-it maintains a count of the number of elements in the list with the invariant
-that the rear (second) list must be non longer than the front (first) list. This
-is the primary property that is checked by LiquidHaskell.
+The banker's queue is designed to enable using the banker's method for analysing
+amortized cost in a lazy data structure. Two lists are maintained in the
+data structure. The first is some prefix of the queue while the second is the
+remaining suffix of the queue. The primary invariant is that the prefix list
+cannot be shorter than the suffix list. This is checked by LiquidHaskell
+according to the following refinement type for the queue constructor.
 
 ```haskell
 {-@ data BankersQueue a = BQ {
@@ -56,13 +63,13 @@ is the primary property that is checked by LiquidHaskell.
 
 The physicist's queue is similar in structure to the banker's queue but, it is
 instead designed for analysis using the physicist's method. The data structure
-maintains the same front and rear lists as the bankers queue with the same
-constraints but, it also maintains a prefix lists that must be a prefix of the
-front list.
+maintains the same prefix and suffix lists as the bankers queue with the same
+constraints but, it also maintains a second prefix lists that must be a prefix
+of the original prefix list.
 
 The refinement types for this data structure should ensure this invariant but,
-at the moment they only ensure that the prefix list is shorter than the front
-list and that the list is nonempty when the front list is nonempty. Hopefully
+at the moment they only ensure that the new prefix list is shorter than the original
+prefix list and that it is nonempty when the original list is nonempty. Hopefully
 this will be fixed before I am finished with this project.
 
 ```haskell
@@ -98,8 +105,8 @@ of member is not refined.
 ```
 
 I want to ensure that member returns true if and only if the element is in the
-set but, I have not been able to make a
-set implementation check using such a refinement type.
+set. Writing a refinement type that encodes this property is simple but, I have
+not been able to write a set implementation that checks using such a refinement type.
 
 ```haskell
 member :: e:a -> v:s a -> {b:Bool | b <=> Set_mem e (setElts b)}
@@ -132,12 +139,12 @@ it can be compared against some other value.
 
 # [Heaps](src/Heap/Heap.hs)
 
-The refinement types for the `Heap` typeclass would ideally ensure both size
-properties and provide some amount of guarantee that the element returned by
-`findMin` is, in fact, the smallest element in the heap. The current refinements
-only protect against calling `findMin` and `deleteMin` on empty heaps. Each heap
-implementation introduces invariants for the data type that ensure that the
-minimum element is kept at the top.
+The refinement types for the `Heap` typeclass would ideally track the size of
+a heap and provide some guarantee that the element returned by `findMin` is, in
+fact, the smallest element in the heap. The current refinements only protect
+against calling `findMin` and `deleteMin` on empty heaps Individual heap
+implementations introduce their own invariants for that ensure that the minimum
+element is kept at the top.
 
 Due to issues working with LiquidHaskell, none of the heap implementations are
 actually instances of this typeclass. The functions of the typeclass are
@@ -194,7 +201,7 @@ This property is then recursively checked for the tail of the list.
 
 The Leftist Heap is a more legitimate heap implementation that *is* included in
 book. The data structure is a binary tree where the element at the root node
-is at least as small as the elements at the nodes children. The Leftist Heap also
+is at least as small as the elements at both of the children. The Leftist Heap also
 requires that the rank (length of the shortest path to a leaf node) of the right
 sub-heap is smaller than the rank of the left sub-heap. Both of these properties
 are encoded in the refinement type for the heaps constructor.
@@ -216,7 +223,7 @@ LiquidHaskell was not able to verify the Leftist Heap merge function given in
 *Purely Functional Data Structures*. I believe that this was because LiquidHaskell
 could not show that minimum after merging two heaps must be the minimum of one
 of the input heaps. I was able to encode a variant of this fact into the type
-of `merge` in a way that enable LiquidHaskell to check the function.
+of `merge` in a way that enabled LiquidHaskell to check the function.
 
 The new type of the function says that any element that is at least as small as
 the minimum of both input heaps must be at least as small as the minimum of the
@@ -244,9 +251,6 @@ sufficed to know that the structure was not empty before retrieving the next
 element, a random access list must verify that a requested index is with the
 bounds of the list before any lookup or update operation. This requirement is
 encoded in the refinement types for these functions.
-
-The interface used for random access list is given below and is also available
-in the 
 
 ```haskell
 {-@ class measure rlen :: forall a. a -> {v:Int | v >= 0} @-}
