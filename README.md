@@ -36,6 +36,12 @@ queue.
 
 ## [Banker's Queue](src/Queue/BankersQueue.hs)
 
+The banker's queue is designed to enable using the banker's method for analysing 
+amortized cost in a lazy data structure. To this end, for each of the two lists
+it maintains a count of the number of elements in the list with the invariant
+that the rear (second) list must be non longer than the front (first) list. This
+is the primary property that is checked by LiquidHaskell.
+
 ```haskell
 {-@ data BankersQueue a = BQ {
       lenf :: Nat,
@@ -46,24 +52,7 @@ queue.
   @-}
 ```
 
-The banker's queue is designed to enable using the banker's method for analysing 
-amortized cost in a lazy data structure. To this end, for each of the two lists
-it maintains a count of the number of elements in the list with the invariant
-that the rear (second) list must be non longer than the front (first) list. This
-is the primary property that is checked by LiquidHaskell.
-
 ## [Physicist's Queue](src/Queue/PhysicistsQueue.hs)
-
-```haskell   
-{-@ data PhysicistsQueue a = PQ {
-      lenf :: Nat,
-      f    :: {v:[a] | len v == lenf},
-      lenr :: {v:Nat | v <= lenf},
-      r    :: {v:[a] | len v == lenr},
-      pre  :: {v:[a] | len v <= lenf && (lenf /= 0 ==> len v /= 0)}
-    }
-  @-}
-```
 
 The physicist's queue is similar in structure to the banker's queue but, it is
 instead designed for analysis using the physicist's method. The data structure
@@ -76,11 +65,26 @@ at the moment they only ensure that the prefix list is shorter than the front
 list and that the list is nonempty when the front list is nonempty. Hopefully
 this will be fixed before I am finished with this project.
 
+```haskell
+{-@ data PhysicistsQueue a = PQ {
+      lenf :: Nat,
+      f    :: {v:[a] | len v == lenf},
+      lenr :: {v:Nat | v <= lenf},
+      r    :: {v:[a] | len v == lenr},
+      pre  :: {v:[a] | len v <= lenf && (lenf /= 0 ==> len v /= 0)}
+    }
+  @-}
+```
+
 # [Sets](src/Set/Set.hs)
 
 Okasaki's book presents a very simple interface for sets. Only insertion and a
 membership predicate are required. This could, of course, be extended to support
 other common functions over sets.
+
+The refinement types for `empty` and `insert` encode these operations in terms
+of functions understood by LiquidHaskell's SMT solver. At the moment, the type
+of member is not refined.
 
 ```haskell
 {-@ class Set s a where
@@ -93,10 +97,8 @@ other common functions over sets.
   @-}
 ```
 
-The refinement types for `empty` and `insert` encode these operations in terms
-of functions understood by LiquidHaskell's SMT solver. At the moment, the type
-of member is not refined. I want the type to ensure that member returns true
-if and only if the element is in the set but, I have not been able to make a
+I want to ensure that member returns true if and only if the element is in the
+set but, I have not been able to make a
 set implementation check using such a refinement type.
 
 ```haskell
