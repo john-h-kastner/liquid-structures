@@ -10,16 +10,13 @@ used to experiment with and learn LiquidHaskell.  Beyond simply ensuring
 invariants, this project also attempts to use LiquidHaskell as a
 [theorem prover][3] to prove other interesting properties.
 
-# Queues 
+# [Queues](src/Queue/Queue.hs)
 
 The first and perhaps simplest abstract data type presented in the book is the
 first-in-first-out queue. The first queue implementation, the batched queue, is
 used as a [case study][4] in the LiquidHaskell tutorial, so I have opted not to
 reproduce it here. I have included two similar queues: the banker's and physicist's
 queue. 
-
-The interface implemented by each queue is given below or, you can view it in
-full in [its source file](src/Queue/Queue.hs).
 
 ```haskell
 {-@ class measure qlen :: forall a. a -> Int @-}
@@ -131,7 +128,7 @@ it can be compared against some other value.
 {-@ predicate IsLT N S = isEmpty S || N < (usTop S) @-}
 ```
 
-# Heaps
+# [Heaps](src/Heap/Heap.hs)
 
 The refinement types for the `Heap` typeclass would ideally ensure both size
 properties and provide some amount of guarantee that the element returned by
@@ -144,9 +141,8 @@ Due to issues working with LiquidHaskell, none of the heap implementations are
 actually instances of this typeclass. The functions of the typeclass are
 implemented by each heap and, the same refinement types are applied to the
 implementations but, I have not been able to able to write them as a formal
-instance of the `Heap` typeclass. The interface below (and in the
-[source file](src/Heap/Heap.hs)) is what should be implemented when this problem
-is resolved.
+instance of the `Heap` typeclass. The interface below is what should be
+implemented when this problem is resolved.
 
 ```haskell
 {-@ class Heap h where
@@ -237,7 +233,7 @@ the extra parameter.
   @-}
 ```
 
-# Random-Access Lists
+# [Random-Access Lists](src/RandomAccessList/RandomAccessList.hs).
 
 A random-access list as presented in *Purely Functional Data Structures* is an
 extension of the usual cons-list that supports lookup and update functions like
@@ -248,7 +244,7 @@ bounds of the list before any lookup or update operation. This requirement is
 encoded in the refinement types for these functions.
 
 The interface used for random access list is given below and is also available
-in the [relevant source file](src/RandomAccessList/RandomAccessList.hs).
+in the 
 
 ```haskell
 {-@ class measure rlen :: forall a. a -> {v:Int | v >= 0} @-}
