@@ -188,79 +188,86 @@ isEmptyrb _     = False
   - I'll do the same thing but for the right subtree.
   -}
 
+{-@ data NoRedInvariant a = NoRedInvariant {
+        nricolor   :: Color,
+        nrival   :: a,
+        nrileft  :: RedBlackSet {vv:a | vv < nrival},
+        nriright :: {v:RedBlackSet {vv:a | vv > nrival} |
+          (nricolor /= Red || 
+          (getColor nrileft) /= Red ||
+          (getColor v) /= Red) &&
+          (numBlack v) == (numBlack nrileft)}
+      }
+   @-}
+
+data NoRedInvariant a = NoRedInvariant {
+  nricolor :: Color,
+  nrival :: a,
+  nrileft :: RedBlackSet a,
+  nriright :: RedBlackSet a
+}
+
+{-@ predicate NriRedInvariant Nri = (nricolor Nri) /= Red ||
+                                    (getColor (nrileft Nri) /= Red &&
+                                     getColor (nriright Nri) /= Red)
+  @-}
+
+{-@ measure nrinumBlack @-}
+{-@ nrinumBlack :: NoRedInvariant a -> Nat @-}
+nrinumBlack :: NoRedInvariant a -> Int
+nrinumBlack (NoRedInvariant c _ l r) = (if c == Black then 1 else 0) + (numBlack l)
+
 {-@ balanceLeft :: forall a. Ord a =>
       c:Color ->
       t:a ->
 
-      cc:{v:Color | c /= Red || v /= Red} ->
-      tt:{v:a | v<t} ->
-      ll:RedBlackSet {vv:a | vv < t && vv < tt} ->
-      rr:{v:RedBlackSet {vv:a | vv < t && vv > tt} | BlackInvariant v ll} ->
+      l:{v:NoRedInvariant {vv:a | vv < t} | c == Red ==> NriRedInvariant v} ->
 
       r:{v:RedBlackSet {vv:a | vv > t} | RedInvariant c v &&
-                                         (numBlack v) == ((if cc == Black then 1 else 0) + (numBlack ll))} ->
-      RedBlackSet a
+                                         (numBlack v) == (nrinumBlack l)} ->
+      {v:NoRedInvariant a | (c /= Red ==> NriRedInvariant v) &&
+                            (nrinumBlack v) == ( if c == Black then 1 else 0) + nrinumBlack l}
   @-}
-balanceLeft :: Ord a => Color -> a -> {-(Tree-} Color -> a -> RedBlackSet a -> RedBlackSet a {-)-} -> RedBlackSet a -> RedBlackSet a
-balanceLeft Black z {-(Tree-}Red y (Tree Red x a b) c{-)-} d =
-  Tree Red y (Tree Black x a b) (Tree Black z c d)
+balanceLeft :: Ord a => Color -> a -> NoRedInvariant a -> RedBlackSet a -> NoRedInvariant a
+balanceLeft Black z (NoRedInvariant Red y (Tree Red x a b) c) d =
+  NoRedInvariant Red y (Tree Black x a b) (Tree Black z c d)
 
-balanceLeft Black z {-(Tree-}Red x a (Tree Red y b c){-)-} d =
-  Tree Red y (Tree Black x a b) (Tree Black z c d)
+balanceLeft Black z (NoRedInvariant Red x a (Tree Red y b c)) d =
+  NoRedInvariant Red y (Tree Black x a b) (Tree Black z c d)
 
-balanceLeft c x {-(Tree-} c' x' a' b' {-)-} b =
-  Tree c x (Tree c' x' a' b') b
+balanceLeft c x (NoRedInvariant c' x' a' b' ) b =
+  NoRedInvariant c x (Tree c' x' a' b') b
 
 {-@ balanceRight :: forall a. Ord a =>
       c:Color ->
       t:a ->
       l:{v:RedBlackSet {vv:a | vv < t} | RedInvariant c v} ->
 
-      cc:{v:Color | c /= Red || v /= Red} ->
-      tt:{v:a | v > t} ->
-      ll:{v:RedBlackSet {vv:a | vv > t && vv < tt} | (numBlack l) == ((if cc == Black then 1 else 0) + (numBlack v))} ->
-      rr:{v:RedBlackSet {vv:a | vv > t && vv > tt} | BlackInvariant v ll} ->
+      r:{v:NoRedInvariant {vv:a | vv > t} | (c == Red ==> NriRedInvariant v) &&
+                                            (nrinumBlack v) == (numBlack l)} ->
 
-      RedBlackSet a
+      {v:NoRedInvariant a | (c /= Red ==> NriRedInvariant v) &&
+                            (nrinumBlack v) == ( if c == Black then 1 else 0) + numBlack l}
    @-}
-balanceRight :: Ord a => Color -> a -> RedBlackSet a -> {-(Tree-} Color -> a -> RedBlackSet a -> RedBlackSet a {-)-} -> RedBlackSet a
-balanceRight Black x a {-(Tree-} Red z (Tree Red y b c) d {-)-} =
-  Tree Red y (Tree Black x a b) (Tree Black z c d)
+balanceRight :: Ord a => Color -> a -> RedBlackSet a -> NoRedInvariant a -> NoRedInvariant a
+balanceRight Black x a (NoRedInvariant Red z (Tree Red y b c) d ) =
+  NoRedInvariant Red y (Tree Black x a b) (Tree Black z c d)
 
-balanceRight Black x a {-(Tree-} Red y b (Tree Red z c d) {-)-} =
-  Tree Red y (Tree Black x a b) (Tree Black z c d)
+balanceRight Black x a (NoRedInvariant Red y b (Tree Red z c d) ) =
+  NoRedInvariant Red y (Tree Black x a b) (Tree Black z c d)
 
-balanceRight c x a {-(Tree-} c' x' a' b' {-)-} =
-  Tree c x a (Tree c' x' a' b')
+balanceRight c x a (NoRedInvariant c' x' a' b' ) =
+  NoRedInvariant c x a (Tree c' x' a' b')
 
---{-@ balance :: forall a. Ord a =>
---      c:Color ->
---      t:a ->
---      l:{v:RedBlackSet a | IsGTrb t v} ->
---      r:{v:RedBlackSet a | IsLTrb t v &&
---                           BlackInvariant v l} ->
---      {b:Bool | (RedInvariant c r) && (RedInvariant c l)} ->
---      RedBlackSet a
---   @-}
---balance :: Ord a => Color -> a -> RedBlackSet a -> RedBlackSet a -> Bool -> RedBlackSet a
---
---balance Black z (Tree Red y (Tree Red x a b) c) d _ =
---  Tree Red y (Tree Black x a b) (Tree Black z c d)
---
---balance Black z (Tree Red x a (Tree Red y b c)) d _ =
---  Tree Red y (Tree Black x a b) (Tree Black x c d)
---
---balance Black x a (Tree Red z (Tree Red y b c) d) _ =
---  Tree Red y (Tree Black x a b) (Tree Black z c d)
---
---balance Black x a (Tree Red y b (Tree Red z c d)) _ =
---  Tree Red y (Tree Black x a b) (Tree Black z c d)      
---
---balance Black x a b _ = 
---  Tree Black x a b
---
---{- This works if I stop here and run with --nototality (i.e. I ignore the case
---   where the color is red) -}
---
---balance Red x a b _ =
---  Tree Red x a b
+{-@ rb_insert_aux :: forall a. Ord a =>
+      x:a ->
+      s:RedBlackSet a ->
+      {v:NoRedInvariant a | ((getColor s) /= Red ==> NriRedInvariant v) &&
+                            (nrinumBlack v) == (numBlack s)}
+  @-}
+rb_insert_aux :: Ord a => a -> RedBlackSet a -> NoRedInvariant a
+rb_insert_aux x Empty = NoRedInvariant Red x Empty Empty
+rb_insert_aux x (Tree c y a b)
+  | x < y     = balanceLeft c y (rb_insert_aux x a) b
+  | x > y     = balanceRight c y a (rb_insert_aux x b)
+  | otherwise = (NoRedInvariant c y a b)
