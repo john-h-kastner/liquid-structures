@@ -271,3 +271,28 @@ rb_insert_aux x (Tree c y a b)
   | x < y     = balanceLeft c y (rb_insert_aux x a) b
   | x > y     = balanceRight c y a (rb_insert_aux x b)
   | otherwise = (NoRedInvariant c y a b)
+
+rb_insert :: Ord a => a -> RedBlackSet a -> RedBlackSet a
+rb_insert x s = (Tree Black e a b)
+  where (NoRedInvariant c e a b) = rb_insert_aux x s
+
+rb_member :: Ord a => a -> RedBlackSet a -> Bool
+rb_member _ Empty = False
+rb_member e (Tree _ x l r)
+  | e < x     = rb_member e l
+  | e > x     = rb_member e r
+  | otherwise = True
+
+--instance Ord a => Set RedBlackSet a where
+--  empty = Empty
+--
+--  insert x s = (Tree Black e a b)
+--    where (NoRedInvariant c e a b) = rb_insert_aux x s
+--
+--  member _ Empty = False
+--  member e (Tree _ x l r)
+--    | e < x     = member e l
+--    | e > x     = member e r
+--    | otherwise = True
+--  
+--  
