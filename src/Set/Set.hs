@@ -212,6 +212,10 @@ data NoRedInvariant a = NoRedInvariant {
                                      getColor (nriright Nri) /= Red)
   @-}
 
+{-@ instance measure setElts :: forall a. NoRedInvariant a -> Set.Set a
+    setElts (NoRedInvariant _ v l r) = Set_cup (Set_sng v) (Set_cup (setElts l) (setElts r))
+  @-}
+
 {-@ measure nrinumBlack @-}
 {-@ nrinumBlack :: NoRedInvariant a -> Nat @-}
 nrinumBlack :: NoRedInvariant a -> Int
@@ -226,7 +230,8 @@ nrinumBlack (NoRedInvariant c _ l r) = (if c == Black then 1 else 0) + (numBlack
       r:{v:RedBlackSet {vv:a | vv > t} | RedInvariant c v &&
                                          (numBlack v) == (nrinumBlack l)} ->
       {v:NoRedInvariant a | (c /= Red ==> NriRedInvariant v) &&
-                            (nrinumBlack v) == ( if c == Black then 1 else 0) + nrinumBlack l}
+                            (nrinumBlack v) == ( if c == Black then 1 else 0) + nrinumBlack l &&
+                            (setElts v) == (Set_cup (Set_sng t) (Set_cup (setElts l) (setElts r)))}
   @-}
 balanceLeft :: Ord a => Color -> a -> NoRedInvariant a -> RedBlackSet a -> NoRedInvariant a
 balanceLeft Black z (NoRedInvariant Red y (Tree Red x a b) c) d =
@@ -247,7 +252,8 @@ balanceLeft c x (NoRedInvariant c' x' a' b' ) b =
                                             (nrinumBlack v) == (numBlack l)} ->
 
       {v:NoRedInvariant a | (c /= Red ==> NriRedInvariant v) &&
-                            (nrinumBlack v) == ( if c == Black then 1 else 0) + numBlack l}
+                            (nrinumBlack v) == ( if c == Black then 1 else 0) + numBlack l &&
+                            (setElts v) == (Set_cup (Set_sng t) (Set_cup (setElts l) (setElts r)))}
    @-}
 balanceRight :: Ord a => Color -> a -> RedBlackSet a -> NoRedInvariant a -> NoRedInvariant a
 balanceRight Black x a (NoRedInvariant Red z (Tree Red y b c) d ) =
@@ -263,7 +269,8 @@ balanceRight c x a (NoRedInvariant c' x' a' b' ) =
       x:a ->
       s:RedBlackSet a ->
       {v:NoRedInvariant a | ((getColor s) /= Red ==> NriRedInvariant v) &&
-                            (nrinumBlack v) == (numBlack s)}
+                            (nrinumBlack v) == (numBlack s) &&
+                            (setElts v) == (Set_cup (Set_sng x) (setElts s))}
   @-}
 rb_insert_aux :: Ord a => a -> RedBlackSet a -> NoRedInvariant a
 rb_insert_aux x Empty = NoRedInvariant Red x Empty Empty
@@ -272,27 +279,14 @@ rb_insert_aux x (Tree c y a b)
   | x > y     = balanceRight c y a (rb_insert_aux x b)
   | otherwise = (NoRedInvariant c y a b)
 
-rb_insert :: Ord a => a -> RedBlackSet a -> RedBlackSet a
-rb_insert x s = (Tree Black e a b)
-  where (NoRedInvariant c e a b) = rb_insert_aux x s
+instance Ord a => Set RedBlackSet a where
+  empty = Empty
 
-rb_member :: Ord a => a -> RedBlackSet a -> Bool
-rb_member _ Empty = False
-rb_member e (Tree _ x l r)
-  | e < x     = rb_member e l
-  | e > x     = rb_member e r
-  | otherwise = True
+  insert x s = forceRedInvarient (rb_insert_aux x s)
+    where forceRedInvarient (NoRedInvariant _ e a b) = Tree Black e a b
 
---instance Ord a => Set RedBlackSet a where
---  empty = Empty
---
---  insert x s = (Tree Black e a b)
---    where (NoRedInvariant c e a b) = rb_insert_aux x s
---
---  member _ Empty = False
---  member e (Tree _ x l r)
---    | e < x     = member e l
---    | e > x     = member e r
---    | otherwise = True
---  
---  
+  member _ Empty = False
+  member e (Tree _ x l r)
+    | e < x     = member e l
+    | e > x     = member e r
+    | otherwise = True
