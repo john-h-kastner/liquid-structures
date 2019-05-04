@@ -116,25 +116,20 @@ member :: e:a -> v:s a -> {b:Bool | b <=> Set_mem e (setElts b)}
 
 Unbalanced set implements the set interface using an unbalanced binary search
 tree. Since it is a binary search tree, the invariant checked in the constructor
-should be that the value at an interior node is greater than the value at its
-left child and less than the value at its right child.
-
-This is accomplished using predicates `IsGT` and `IsLT`. These predicates first
-check that a tree is not empty then they retrieve the value and the node so that
-it can be compared against some other value.
+is that every element of the left subtree is less than the root node and every
+element of the right subtree is greater than the root node. This is accomplished
+by refining the type of the left and right sub trees with a predicate that
+applies to every element in the tree.
 
 ```haskell
 {-@ data UnbalancedSet a =
       E |
       T {
         val   :: a,
-        left  :: {v : UnbalancedSet a | IsGT val v},
-        right :: {v : UnbalancedSet a | IsLT val v}
+        left  :: UnbalancedSet {vv:a | vv < val},
+        right :: UnbalancedSet {vv:a | vv > val}
       }
 @-}
-
-{-@ predicate IsGT N S = isEmpty S || N > (usTop S) @-}
-{-@ predicate IsLT N S = isEmpty S || N < (usTop S) @-}
 ```
 
 # [Heaps](src/Heap/Heap.hs)
