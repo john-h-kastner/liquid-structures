@@ -1,118 +1,177 @@
+{-# LANGUAGE GADTs #-}
+
+{-@ LIQUID "--exact-data-con" @-}
+{-@ LIQUID "--ple" @-}
+
 module Queue.PhysicistsQueue where
 
-import Prelude hiding (head, tail)
+import Language.Haskell.Liquid.ProofCombinators
+
+import Prelude hiding (head, tail, reverse)
 import qualified Prelude (tail)
 
-import Queue.Queue
+--import Queue.Queue
 
-{- TODO: ensure pre is a prefix of f. For now, I only check that the pre is
- - shorter than f and that it's elements are a subset of f's elements. Just
- - kidding, I'm not doing the set thing either.
- -
- - I would like to ensure a subset property like:
- -
- -     pre  :: {v:[a] |
- -       Set_sub (listElts v) (listElts f) &&
- -       len v <= lenf &&
- -       (lenf /= 0 ==> len v /= 0)}
- -
- - Even better is a prefix relation like:
- -
- -     pre :: {v:[a] |
- -       Prefix v f &&
- -       len v <= lenf &&
- -       (lenf /= 0 ==> len v /= 0)}
- -
- - In think that the subset relation should be doable but, I have not been
- - able to figure it out in the time I've spent so far. The issue I encountered
- - was that (l0 <= l1) =/=> (tl 0) <= (tl 1).
- -
- -     Counterexample:
- -       let l0 = [1, 2] and l1 = [2, 1]
- -       l0 <= l1 but,
- -       (tl l0) = [2]
- -       (tl l1) = [1]
- -       [2] </= [1]
- -
- - To implement the prefix relation, I think I can either use coq style inductive
- - predicates (these do seem to exists in LiquidHaskell) or, write a recursive
- - prefix test function and raise it to the refinement type level using reflection.
- - I have not attempted either of these approaches.
- -}
+{- The inductive predicates did not work well with Haskell's built in lists so,
+ - I've included a custom list datatype. -}
+data List a = Nil | Cons a (List a)
+
+{-@ measure llen @-}
+{-@ llen :: List _ -> Nat @-}
+llen :: List a -> Int
+llen Nil = 0
+llen (Cons _ t) = 1 + llen t
+
+{-@ reflect app @-}
+{-@ app ::
+      l0:List a ->
+      l1:List a ->
+      {l2:List a | llen l2 == (llen l0 + llen l1)}
+  @-}
+app :: List a -> List a -> List a
+app Nil l1        = l1
+app (Cons h t) l1 = Cons h (app t l1)
+
+{- This isn't tail recursive reverse because liquid was refusing to check that
+ - version. It'd be nice to be able to use a tail recursive reverse but, this
+ - is fine for now. -}
+{-@ reflect reverse @-}
+{-@ reverse ::
+    l0:List a ->
+    {l1:List a | llen l1 == llen l0}
+  @-}
+reverse :: List a -> List a
+reverse Nil        = Nil
+reverse (Cons h t) = app (reverse t) (Cons h Nil)
+
+data PrefixP a where
+  Prefix :: List a -> List a -> PrefixP a
+
+data Prefix a where
+  PrefixNil  :: List a -> Prefix a
+  PrefixCons :: a -> List a -> List a -> Prefix a -> Prefix a
+
+{-@ data Prefix a where
+        PrefixNil  :: l:List a ->
+                      Prop (Prefix Nil l)
+      | PrefixCons :: h:a -> l0:List a -> l1:List a ->
+                      Prop (Prefix l0 l1) ->
+                      Prop (Prefix (Cons h l0) (Cons h l1))
+  @-}
+
+{-@ prefix_ex1 :: Prop (Prefix (Cons 1 Nil) (Cons 1 Nil)) @-}
+prefix_ex1 :: Prefix Int
+prefix_ex1 = PrefixCons 1 Nil Nil (PrefixNil Nil)
+
+{-@ prefix_ex2 :: Prop (Prefix Nil Nil) @-}
+prefix_ex2 :: Prefix Int
+prefix_ex2 = PrefixNil Nil
+
+{-@ prefix_ex3 :: Prop (Prefix (Cons 1  Nil) (Cons 1 (Cons 2 Nil))) @-}
+prefix_ex3 :: Prefix Int
+prefix_ex3 = PrefixCons 1 Nil (Cons 2 Nil) (PrefixNil (Cons 2 Nil))
+
+{-@ lemma_prefixSelf :: forall a.
+      l:List a ->
+      Prop (Prefix l l)
+  @-}
+lemma_prefixSelf :: List a -> Prefix a
+lemma_prefixSelf Nil        = PrefixNil Nil
+lemma_prefixSelf (Cons h t) = PrefixCons h t t (lemma_prefixSelf t)
+
+{-@ lemma_prefixApp :: forall a.
+      l0 : List a -> l1 : List a -> l2 : List a ->
+      Prop (Prefix l0 l1) ->
+      Prop (Prefix l0 (app l1 l2))
+  @-}
+lemma_prefixApp :: List a -> List a -> List a -> Prefix a -> Prefix a
+lemma_prefixApp _ l1 l2 (PrefixNil _) =
+  PrefixNil (app l1 l2)
+lemma_prefixApp l0 l1 l2 (PrefixCons h t0 t1 p) =
+  PrefixCons h t0 (app t1 l2) (lemma_prefixApp t0 t1 l2 p)
+
+{-@ lemma_prefixAppSelf :: forall a.
+    l0 : List a -> l1 : List a ->
+    Prop (Prefix l0 (app l0 l1))
+  @-}
+lemma_prefixAppSelf :: List a -> List a -> Prefix a
+lemma_prefixAppSelf l0 l1 = lemma_prefixApp l0 l0 l1 (lemma_prefixSelf l0)
 
 {-@ data PhysicistsQueue a = PQ {
       lenf :: Nat,
-      f    :: {v:[a] | len v == lenf},
+      f    :: {v:List a | llen v == lenf},
       lenr :: {v:Nat | v <= lenf},
-      r    :: {v:[a] | len v == lenr},
-      pre  :: {v:[a] | len v <= lenf && (lenf /= 0 ==> len v /= 0)}
+      r    :: {v:List a | llen v == lenr},
+      pre  :: {v:List a | (lenf /= 0 ==> llen v /= 0)},
+      isPrefix :: Prop (Prefix pre f)
     }
   @-}
 
 type PQ a = PhysicistsQueue a
 data PhysicistsQueue a = PQ {
   lenf :: Int,
-  f    :: [a],
+  f    :: List a,
   lenr :: Int,
-  r    :: [a],
-  pre  :: [a]
+  r    :: List a,
+  pre  :: List a,
+  isPrefix :: Prefix a
 }
+
+{-@ measure qlen @-}
+{-@ qlen :: PQ a -> Nat @-}
+qlen (PQ f _ r _ _ _) = f + r
 
 {-@ check :: forall a.
       lenf : Nat ->
-      f    : {v:[a] | len v == lenf} ->
+      f    : {v:List a | llen v == lenf} ->
       lenr : Nat ->
-      r    : {v:[a] | len v == lenr} ->
-      pre  : {v:[a] | len v <= lenf} ->
+      r    : {v:List a | llen v == lenr} ->
+      pre  : List a ->
+      isPrefix : Prop (Prefix pre f) ->
       {v:PQ a | qlen v == lenf + lenr}
    @-}
-check :: Int -> [a] -> Int -> [a] -> [a] -> PQ a
-check lenf f lenr r w
-  | lenr <= lenf = checkw lenf f lenr r w
-  | otherwise    = checkw (lenf + lenr) (f ++ reverse r) 0 [] f
-    where
-      {-@ checkw :: forall a.
-            lenf : Nat ->
-            f    : {v:[a] | len v == lenf} ->
-            lenr : {v:Nat | v <= lenf} ->
-            r    : {v:[a] | len v == lenr} ->
-            pre  : {v:[a] | len v <= lenf} ->
-            {v:PQ a | qlen v == lenf + lenr}
-        @-}
-      checkw :: Int -> [a] -> Int -> [a] -> [a] -> PQ a
-      checkw lenf f lenr r [] = PQ lenf f lenr r f
-      checkw lenf f lenr r w  = PQ lenf f lenr r w
+check :: Int -> List a -> Int -> List a -> List a -> Prefix a -> PQ a
+check lenf f lenr r w p
+  | lenr <= lenf = checkw lenf f lenr r w p
+  | otherwise    = checkw (lenf + lenr) (app f (reverse r)) 0 Nil f (lemma_prefixAppSelf f (reverse r))
 
-{- I needed this append function for an attempt at ensuring the prefix relationship
- - between f and w. That attempt never made it far enough to get a commit so,
- - I'm leaving this for the time being. It should be removed if I ever get the
- - prefix invariant working properly. -}
-{-
-      {- Prelude.++ was not providing the set element property I needed so, I
-       - provide my own implementation. I might be able to just write a lemma
-       - to avoid reimplementing the entire function -}
-      {-@ append :: forall a.
-            xs : [a] ->
-            ys : [a] ->
-            {v:[a] | (len v)      == ((len xs) + (len ys)) &&
-                     (listElts v) == (Set_cup (listElts xs) (listElts ys))}
-        @-}
-      append :: [a] -> [a] -> [a]
-      append xs []     = xs
-      append [] ys     = ys
-      append (x:xs) ys = x : (append xs ys)
--}
+{-@ checkw :: forall a.
+    lenf : Nat ->
+    f    : {v:List a | llen v == lenf} ->
+    lenr : {v:Nat | v <= lenf} ->
+    r    : {v:List a | llen v == lenr} ->
+    pre  : List a ->
+    isPrefix : Prop (Prefix pre f) ->
+    {v:PQ a | qlen v == lenf + lenr}
+  @-}
+checkw :: Int -> List a -> Int -> List a -> List a -> Prefix a -> PQ a
+checkw lenf f lenr r Nil _ = PQ lenf f lenr r f (lemma_prefixSelf f)
+checkw lenf f lenr r w  p  = PQ lenf f lenr r w p
 
-instance Queue PhysicistsQueue where
-  {-@ instance measure qlen :: PQ a -> Int
-      qlen (PQ f _ r _ _) = f + r
-    @-}
+--instance Queue PhysicistsQueue where
 
-  empty                         = PQ 0 [] 0 [] []
-  isEmpty (PQ f _ _ _ _)        = f == 0
+{-@ empty :: {q:(PQ a) | 0 == qlen q} @-}
+empty = PQ 0 Nil 0 Nil Nil (PrefixNil Nil)
 
-  snoc (PQ lenf f lenr r w) x   = check lenf f (lenr + 1) (x:r) w
-  head (PQ _ _ _ _ (x:_))       = x
-  {- I don't know why Okasaki used Prelude.tail here instead of pattern matching.
-   - I've left it the same as his implementation. -}
-  tail (PQ lenf f lenr r w) = check (lenf - 1) (Prelude.tail f) lenr r (Prelude.tail w)
+{-@ isEmpty :: q:(PQ a) -> {v:Bool | v <=> (0 == qlen q)} @-}
+isEmpty (PQ f _ _ _ _ _) = f == 0
+
+{-@ snoc :: forall a.
+      q0:PQ a ->
+      a ->
+      {q1:PQ a | (qlen q1) == (qlen q0) + 1}
+  @-}
+snoc (PQ lenf f lenr r w p) x = check lenf f (lenr + 1) (Cons x r) w p
+
+{-@ head :: forall a.
+      {q:PQ a | qlen q /= 0} ->
+      a
+  @-}
+head (PQ _ _ _ _ (Cons x _) _) = x
+
+{-@ tail :: forall a.
+      {q0:PQ a | qlen q0 /= 0} ->
+      {q1:PQ a | (qlen q1) == (qlen q0) - 1}
+  @-}
+tail (PQ lenf (Cons _ f) lenr r (Cons _ w) (PrefixCons _ _ _ p)) =
+  check (lenf - 1) f lenr r w p
