@@ -63,24 +63,44 @@ according to the following refinement type for the queue constructor.
 
 The physicist's queue is similar in structure to the banker's queue but, it is
 instead designed for analysis using the physicist's method. The data structure
-maintains the same prefix and suffix lists as the bankers queue with the same
-constraints but, it also maintains a second prefix lists that must be a prefix
-of the original prefix list.
+maintains the same prefix and suffix lists as the banker's queue with the same
+constraint on the relative lengths of these lists. What distinguishes it form
+the banker's queue is that it maintains a second prefix list. The second prefix,
+as well as being a prefix of the entire queue, must be a prefix of the original
+prefix and it must be non-empty whenever the original prefix is non-empty.
 
-The refinement types for this data structure should ensure this invariant but,
-at the moment they only ensure that the new prefix list is shorter than the original
-prefix list and that it is nonempty when the original list is nonempty. Hopefully
-this will be fixed before I am finished with this project.
+The refinements for the first four record fields are identical to the banker's
+queue. The remaining two fields encode the more interesting second prefix list.
+The list itself is stored as `pre`. The refinement for `pre` forces the second
+prefix to be non-empty if the original prefix is not empty. The final field,
+`isPrefix` encodes the actual prefix relationship between `pre` and `f`. This
+is done using an inductive predicate similar to what can be used in Coq.
+
+The inductive predicate for prefix has two cases. A list can be empty, in which
+case it is a prefix of every list. A list can be non-empty, in which case it is
+only the prefix of another list if they have same first element and the tail of
+the prefix is the prefix of the tail of the list.
 
 ```haskell
 {-@ data PhysicistsQueue a = PQ {
       lenf :: Nat,
-      f    :: {v:[a] | len v == lenf},
+      f    :: {v:List a | llen v == lenf},
       lenr :: {v:Nat | v <= lenf},
-      r    :: {v:[a] | len v == lenr},
-      pre  :: {v:[a] | len v <= lenf && (lenf /= 0 ==> len v /= 0)}
+      r    :: {v:List a | llen v == lenr},
+      pre  :: {v:List a | (lenf /= 0 ==> llen v /= 0)},
+      isPrefix :: Prop (Prefix pre f)
     }
   @-}
+
+{-@ data Prefix a where
+        PrefixNil  :: l:List a ->
+                      Prop (Prefix Nil l)
+      | PrefixCons :: h:a -> l0:List a -> l1:List a ->
+                      Prop (Prefix l0 l1) ->
+                      Prop (Prefix (Cons h l0) (Cons h l1))
+  @-}
+
+data List a = Nil | Cons a (List a)
 ```
 
 # [Sets](src/Set/Set.hs)
