@@ -25,19 +25,18 @@ used to track the length of a queue and to ensure that `head` and `tail` are
 never called on empty queues.
 
 ```haskell
-{-@ class measure qlen :: forall a. a -> Int @-}
-{-@ class Queue q where
-      empty   :: forall a.
-        {q:(q a) | 0 == qlen q}
-      isEmpty :: forall a.
-        q:(q a) -> {v:Bool | v <=> (0 == qlen q)}
-      snoc    :: forall a.
-        q0:q a -> a -> {q1:q a | (qlen q1) == (qlen q0) + 1}
-      head    :: forall a.
-        {q:q a | qlen q /= 0} -> a
-      tail    :: forall a.
-        {q0:q a | qlen q0 /= 0} -> {q1:q a | (qlen q1) == (qlen q0) - 1}
-  @-}
+class measure qlen :: forall a. a -> Int
+class Queue q where
+  empty   :: forall a.
+    {q:(q a) | 0 == qlen q}
+  isEmpty :: forall a.
+    q:(q a) -> {v:Bool | v <=> (0 == qlen q)}
+  snoc    :: forall a.
+    q0:q a -> a -> {q1:q a | (qlen q1) == (qlen q0) + 1}
+  head    :: forall a.
+    {q:q a | qlen q /= 0} -> a
+  tail    :: forall a.
+    {q0:q a | qlen q0 /= 0} -> {q1:q a | (qlen q1) == (qlen q0) - 1}
 ```
 
 ## [Banker's Queue](src/Queue/BankersQueue.hs)
@@ -50,13 +49,12 @@ cannot be shorter than the suffix list. This is checked by LiquidHaskell
 according to the following refinement type for the queue constructor.
 
 ```haskell
-{-@ data BankersQueue a = BQ {
-      lenf :: Nat,
-      f    :: {v:[a] | len v == lenf},
-      lenr :: {v:Nat | v <= lenf},
-      r    :: {v:[a] | len v == lenr}
-    }
-  @-}
+data BankersQueue a = BQ {
+  lenf :: Nat,
+  f    :: {v:[a] | len v == lenf},
+  lenr :: {v:Nat | v <= lenf},
+  r    :: {v:[a] | len v == lenr}
+}
 ```
 
 ## [Physicist's Queue](src/Queue/PhysicistsQueue.hs)
@@ -82,24 +80,20 @@ only the prefix of another list if they have same first element and the tail of
 the prefix is the prefix of the tail of the list.
 
 ```haskell
-{-@ data PhysicistsQueue a = PQ {
-      lenf :: Nat,
-      f    :: {v:List a | llen v == lenf},
-      lenr :: {v:Nat | v <= lenf},
-      r    :: {v:List a | llen v == lenr},
-      pre  :: {v:List a | (lenf /= 0 ==> llen v /= 0)},
-      isPrefix :: Prop (Prefix pre f)
-    }
-  @-}
-
-{-@ data Prefix a where
-        PrefixNil  :: l:List a ->
-                      Prop (Prefix Nil l)
-      | PrefixCons :: h:a -> l0:List a -> l1:List a ->
-                      Prop (Prefix l0 l1) ->
-                      Prop (Prefix (Cons h l0) (Cons h l1))
-  @-}
-
+data PhysicistsQueue a = PQ {
+  lenf :: Nat,
+  f    :: {v:List a | llen v == lenf},
+  lenr :: {v:Nat | v <= lenf},
+  r    :: {v:List a | llen v == lenr},
+  pre  :: {v:List a | (lenf /= 0 ==> llen v /= 0)},
+  isPrefix :: Prop (Prefix pre f)
+}
+data Prefix a where
+    PrefixNil  :: l:List a ->
+                  Prop (Prefix Nil l)
+  | PrefixCons :: h:a -> l0:List a -> l1:List a ->
+                  Prop (Prefix l0 l1) ->
+                  Prop (Prefix (Cons h l0) (Cons h l1))
 data List a = Nil | Cons a (List a)
 ```
 
@@ -114,14 +108,13 @@ of functions understood by LiquidHaskell's SMT solver. At the moment, the type
 of member is not refined.
 
 ```haskell
-{-@ class Set s a where
-      empty  ::
-        {v:s a | Set_emp (setElts v)}
-      insert ::
-        e:a -> v:s a -> {vv: s a | (setElts vv) == Set_cup (Set_sng e) (setElts v)}
-      member ::
-        e:a -> v:s a -> Bool
-  @-}
+class Set s a where
+  empty  ::
+    {v:s a | Set_emp (setElts v)}
+  insert ::
+    e:a -> v:s a -> {vv: s a | (setElts vv) == Set_cup (Set_sng e) (setElts v)}
+  member ::
+    e:a -> v:s a -> Bool
 ```
 
 I want to ensure that member returns true if and only if the element is in the
@@ -142,14 +135,12 @@ by refining the type of the left and right sub trees with a predicate that
 applies to every element in the tree.
 
 ```haskell
-{-@ data UnbalancedSet a =
-      E |
-      T {
-        val   :: a,
-        left  :: UnbalancedSet {vv:a | vv < val},
-        right :: UnbalancedSet {vv:a | vv > val}
-      }
-@-}
+data UnbalancedSet a =
+  E | T {
+    val   :: a,
+    left  :: UnbalancedSet {vv:a | vv < val},
+    right :: UnbalancedSet {vv:a | vv > val}
+  }
 ```
 
 # [Heaps](src/Heap/Heap.hs)
@@ -169,22 +160,19 @@ instance of the `Heap` typeclass. The interface below is what should be
 implemented when this problem is resolved.
 
 ```haskell
-{-@ class Heap h where
-      empty     :: forall a. Ord a =>
-        {h:h a | 0 == hsize h}
-      isEmpty   :: forall a. Ord a =>
-        h:h a -> {v:Bool | v <=> (0 == hsize h)}
-
-      insert    :: forall a. Ord a =>
-        a -> h0:h a -> {h1:h a | (hsize h1) == (hsize h0) + 1}
-      merge     :: forall a. Ord a =>
-        h0:h a -> h1:h a -> {h2:h a | (hsize h2) == (hsize h0) + (hsize h1)}
-
-      findMin   :: forall a. Ord a =>
-        {h:h a | hsize h /= 0} -> a
-      deleteMin :: forall a. Ord a =>
-        {h0:h a | hsize h0 /= 0} -> {h1: h a | (hsize h1) == (hsize h0) - 1}
-  @-}
+class Heap h where
+  empty     :: forall a. Ord a =>
+    {h:h a | 0 == hsize h}
+  isEmpty   :: forall a. Ord a =>
+    h:h a -> {v:Bool | v <=> (0 == hsize h)}
+  insert    :: forall a. Ord a =>
+    a -> h0:h a -> {h1:h a | (hsize h1) == (hsize h0) + 1}
+  merge     :: forall a. Ord a =>
+    h0:h a -> h1:h a -> {h2:h a | (hsize h2) == (hsize h0) + (hsize h1)}
+  findMin   :: forall a. Ord a =>
+    {h:h a | hsize h /= 0} -> a
+  deleteMin :: forall a. Ord a =>
+    {h0:h a | hsize h0 /= 0} -> {h1: h a | (hsize h1) == (hsize h0) - 1}
 ```
 
 ## [Sorted List Heap](src/Heap/SortedListHeap.hs)
@@ -201,15 +189,12 @@ singleton list the head of the list is at least as small as the head of the tail
 This property is then recursively checked for the tail of the list.
 
 ```haskell
-{-@ data SortedListHeap a =
-      Nil |
-      Cons {
-        t :: SLH a,
-        h :: {v:a | IsMin v t}
-      }
-  @-}
-
-{-@ predicate IsMin N H = (hsize H == 0) || (N <= hmin H) @-}
+data SortedListHeap a =
+  Nil | Cons {
+    t :: SLH a,
+    h :: {v:a | IsMin v t}
+  }
+predicate IsMin N H = (hsize H == 0) || (N <= hmin H)
 ```
 
 ## [Leftist Heap](src/Heap/LeftistHeap.hs)
@@ -222,15 +207,12 @@ sub-heap is smaller than the rank of the left sub-heap. Both of these properties
 are encoded in the refinement type for the heaps constructor.
 
 ```haskell
-{-@ data LeftistHeap a =
-      E |
-      T
-        (r     :: {v:Nat | v > 0})
-        (left  :: LH a)
-        (right :: {v:LH a | (rank v == r - 1) &&
-                            (rank left >= rank v)})
-        (val   :: {v:a | IsMin v left && IsMin v right} )
-  @-}
+data LeftistHeap a =
+  E | T
+    (r     :: {v:Nat | v > 0})
+    (left  :: LH a)
+    (right :: {v:LH a | (rank v == r - 1) && (rank left >= rank v)})
+    (val   :: {v:a | IsMin v left && IsMin v right} )
 ```
 
 The implementation of `merge` for this heap is particularly interesting.
@@ -248,13 +230,10 @@ inside the body of the function. I would like to further modify the type to remo
 the extra parameter.
 
 ```haskell
-{-@ merge_aux :: forall a. Ord a =>
-      e:a ->
-      h0:LH a ->
-      h1:LH a ->
-      {h2:LH a | (hsize h2 == hsize h0 + hsize h1) &&
-                 (IsMin e h0 ==> IsMin e h1 ==> IsMin e h2)}
-  @-}
+merge_aux :: forall a. Ord a =>
+  e:a -> h0:LH a -> h1:LH a ->
+  {h2:LH a | (hsize h2 == hsize h0 + hsize h1) &&
+             (IsMin e h0 ==> IsMin e h1 ==> IsMin e h2)}
 ```
 
 # [Random-Access Lists](src/RandomAccessList/RandomAccessList.hs).
@@ -268,25 +247,22 @@ bounds of the list before any lookup or update operation. This requirement is
 encoded in the refinement types for these functions.
 
 ```haskell
-{-@ class measure rlen :: forall a. a -> {v:Int | v >= 0} @-}
-{-@ class RandomAccessList r where
-      empty   :: forall a.
-        {r:(r a) | 0 == rlen r}
-      isEmpty :: forall a.
-        r:(r a) -> {v:Bool | v <=> (0 == rlen r)}
-
-      cons    :: forall a.
-        a -> r0:r a -> {r1:r a | (rlen r1) == (rlen r0) + 1}
-      head    :: forall a.
-        {r:r a | rlen r /= 0} -> a
-      tail    :: forall a.
-        {r0:r a | rlen r0 /= 0} -> {r1:r a | (rlen r1) == (rlen r0) - 1}
-
-      lookup :: forall a.
-        r:r a -> {i:Nat | i < rlen r} -> a
-      update :: forall a.
-        r0:r a -> {i:Nat | i < rlen r0} -> a -> {r1:r a | (rlen r1) == (rlen r1)}
-  @-}
+class measure rlen :: forall a. a -> {v:Int | v >= 0}
+class RandomAccessList r where
+  empty   :: forall a.
+    {r:(r a) | 0 == rlen r}
+  isEmpty :: forall a.
+    r:(r a) -> {v:Bool | v <=> (0 == rlen r)}
+  cons    :: forall a.
+    a -> r0:r a -> {r1:r a | (rlen r1) == (rlen r0) + 1}
+  head    :: forall a.
+    {r:r a | rlen r /= 0} -> a
+  tail    :: forall a.
+    {r0:r a | rlen r0 /= 0} -> {r1:r a | (rlen r1) == (rlen r0) - 1}
+  lookup  :: forall a.
+    r:r a -> {i:Nat | i < rlen r} -> a
+  update  :: forall a.
+    r0:r a -> {i:Nat | i < rlen r0} -> a -> {r1:r a | (rlen r1) == (rlen r1)}
 ```
 
 ## [Simple Random-Access List](src/RandomAccessList/SimpleRandomAccessList.hs)
