@@ -16,6 +16,7 @@ description:         Please see the README on GitHub at <https://github.com/jack
 dependencies:
 - base >= 4.7 && < 5
 - containers
+- liquidhaskell >= 0.8 && < 0.9
 
 library:
   source-dirs: src
