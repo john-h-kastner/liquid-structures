@@ -125,7 +125,7 @@ not been able to write a set implementation that checks using such a refinement 
 member :: e:a -> v:s a -> {b:Bool | b <=> Set_mem e (setElts b)}
 ```
 
-## [Unbalanced Set](src/Set/Set.hs)
+## [Unbalanced Set](src/Set/Set.hs#L22)
 
 Unbalanced set implements the set interface using an unbalanced binary search
 tree. Since it is a binary search tree, the invariant checked in the constructor
@@ -143,7 +143,7 @@ data UnbalancedSet a =
   }
 ```
 
-## [Red-Black Set](src/Set/Set.hs)
+## [Red-Black Set](src/Set/Set.hs#L73)
 
 The red-black set implements a set using a red-black tree. This data structure
 is very similar to the binary search tree. The difference is that each node in
