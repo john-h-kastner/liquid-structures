@@ -143,6 +143,96 @@ data UnbalancedSet a =
   }
 ```
 
+## [Red-Black Set](src/Set/Set.hs)
+
+The red-black set implements a set using a red-black tree. This data structure
+is very similar to the binary search tree. The difference is that each node in
+the tree has a color field that is used to enforce two invariants. As stated in
+*Purely Functional Data Structures*, these are
+
+> **Invariant 1.**  No red node has a red child.  
+> **Invariant 2.**  Every path from  the root to an empty node contains the same
+>                   number of black nodes
+
+The invariants are called `RedInvariant` and the `BlackInvariant` in the
+predicates below. `RedInvariant` compares the color of a child to its parent to
+ensure that the child is not red when the parent is red. `BlackInvariant`
+compares the number of black nodes on the path to a leaf for two child trees
+to ensure these values are the same.
+
+```haskell
+data Color = Red | Black
+data RedBlackSet a =
+  Empty | Tree {
+    color   :: Color,
+    rbval   :: a,
+    rbleft  :: {v:RedBlackSet {vv:a | vv < rbval} | RedInvariant color v},
+    rbright :: {v:RedBlackSet {vv:a | vv > rbval} | RedInvariant color v &&
+                                                    BlackInvariant v rbleft}
+  }
+predicate RedInvariant C S     = (C == Red) ==> (getColor S /= Red)
+predicate BlackInvariant S0 S1 = (numBlack S0) == (numBlack S1)
+```
+
+In additions to the full red-black set, it is useful to have a version of the
+data structure with a weakened version of the red invariant. The weak invariant
+is that at least one of the root node and the two children must be black. The
+full red invariant holds for the children. This invariant is a necessary
+precondition for one of the inputs to the rebalancing procedure and it is a
+constant postcondition on the output of the rebalancing procedure.
+
+```haskell
+data WeakRedInvariant a = WeakRedInvariant {
+  weakColor :: Color,
+  weakVal   :: a,
+  weakLeft  :: RedBlackSet {vv:a | vv < weakVal},
+  weakRight :: {v:RedBlackSet {vv:a | vv > weakVal} |
+    (weakColor /= Red ||
+    (getColor weakLeft) /= Red ||
+    (getColor v) /= Red) &&
+    (numBlack v) == (numBlack weakLeft)}
+}
+```
+
+Given a tree with only the weak red invariant, it can be necessary to describe
+the conditions when the full red invariant holds. For this purpose, there is a
+predicate `HasStrongRedInvariant`. This checks enforces the same property as the
+`RedInvariant` property but, it is a function over the entire tree rather than
+only the root node and one child.
+
+```haskell
+predicate HasStrongRedInvariant Wri = (weakColor Wri) == Red ==>
+                                      (getColor (weakLeft Wri) /= Red &&
+                                       getColor (weakRight Wri) /= Red)
+```
+
+These data types and functions are enough to write the refinement type for
+the auxiliary insertion function. This function does the majority of the work
+during insertion. The inputs to the function are not specially refined. It takes
+and element to insert and a `RedBlackSet` to insert it into. The refinement on
+the return type is more interesting. Rather than returning a full `RedBlackSet`,
+a `WeakRedInvariant` is returned. This means that red invariant does not
+necessarily hold for the returned tree; however, a condition is provided when
+the return value does maintain the red invariant. This is that when the color
+of the original tree was not red, the red invariant will hold for the output.
+
+```haskell
+rb_insert_aux :: forall a. Ord a =>
+  x:a ->
+  s:RedBlackSet a ->
+  {v:WeakRedInvariant a | ((getColor s) /= Red ==> HasStrongRedInvariant v) &&
+                          (weakNumBlack v) == (numBlack s) &&
+                          (setElts v) == (Set_cup (Set_sng x) (setElts s))}
+```
+
+Since the auxiliary function does not return a full red-black tree, the primary
+insert function must perform some transformation to convert it into a
+`RedBlackSet`. Since the strong red invariant still applies to the sub-trees of
+a `WeakRedInvariant` structure, the strong red invariant can be established for
+the full tree changing the color of the root node to black. This does not
+invalidate the black invariant because it will uniformly add either one or zero
+to the number of black nodes on every path from the root node to a leaf node.
+
 # [Heaps](src/Heap/Heap.hs)
 
 The refinement types for the `Heap` typeclass would ideally track the size of
