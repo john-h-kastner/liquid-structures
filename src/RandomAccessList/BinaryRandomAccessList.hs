@@ -155,29 +155,86 @@ unconsTree (Cons s Zero t)          =
   let (Node tl tr _, t') = unconsTree t in
   (tl, Cons s (One tr) t')
 
-{-@ empty :: forall a. {r:CompleteBinaryList a | 0 == binListLen r} @-}
+{-@ empty :: {r:CompleteBinaryList a | 0 == binListLen r} @-}
 empty = Nil 0
 
-{-@ isEmpty :: forall a. r:(CompleteBinaryList a) -> {v:Bool | v <=> (0 == binListLen r)} @-}
+{-@ isEmpty ::
+      r:(CompleteBinaryList a) ->
+      {v:Bool | v <=> (0 == binListLen r)}
+  @-}
 isEmpty bl = 0 == binListLen bl
 
-{-@ cons :: forall a. a -> r0:CompleteBinaryList a -> {r1:CompleteBinaryList a | (binListLen r1) == (binListLen r0) + 1} @-}
+{-@ cons ::
+      a ->
+      r0:CompleteBinaryList a ->
+      {r1:CompleteBinaryList a | (binListLen r1) == (binListLen r0) + 1}
+  @-}
 cons e bl = consTree (Leaf e) bl
 
-{-@ head :: forall a. {r:CompleteBinaryList a | binListLen r /= 0} -> a @-}
+{-@ head ::
+      {r:CompleteBinaryList a | binListLen r /= 0} ->
+      a
+  @-}
 head bl = let (Leaf e, _) = unconsTree bl in e
 
-{- I don't know why but, liquid won't do this substitutoin inline without
+{- I don't know why but, liquid won't do this substitution in-line without
  - explicitly referencing the lemma -}
-{-@ lemma_pow2_0 :: b:CompleteBinaryList a ->  {v:() | 1 == pow2 (getIndex b)} @-}
-lemma_pow2_0 :: BinaryList a -> ()
-lemma_pow2_0 _ = ()
+{-@ lemma_pow2Idx0 ::
+      b:CompleteBinaryList a ->
+      {v:() | 1 == pow2 (getIndex b)}
+  @-}
+lemma_pow2Idx0 :: BinaryList a -> ()
+lemma_pow2Idx0 _ = ()
 
 {-@ tail ::
       r:{v:CompleteBinaryList a | binListLen v /= 0} ->
       {v:CompleteBinaryList a | (binListLen v) == (binListLen r) - 1}
   @-}
-tail bl = let (_, t) = unconsTree bl in (flip const) (lemma_pow2_0 bl) $ t
+tail bl = let (_, t) = unconsTree bl in (flip const) (lemma_pow2Idx0 bl) $ t
 
---{-@ lookup  :: forall a. r:r a -> {i:Nat | i < rlen r} -> a @-}
---{-@ update  :: forall a. r0:r a -> {i:Nat | i < rlen r0} -> a -> {r1:r a | (rlen r1) == (rlen r1)} @-}
+{-@ lookup ::
+      b:BinaryList a ->
+      {i:Nat | i < binListLen b} ->
+      a
+  @-}
+lookup :: BinaryList a -> Int -> a
+lookup (Cons _ Zero ts) i  = lookup ts i
+lookup (Cons _ (One t) ts) i
+  | i < cachedTreeSize t = lookupTree t i
+  | otherwise            = lookup ts (i - cachedTreeSize t)
+
+{-@ lookupTree ::
+      t:Tree a ->
+      {i:Nat | i < treeSize t} ->
+      a
+  @-}
+lookupTree :: Tree a -> Int -> a
+lookupTree (Leaf x) 0 = x
+lookupTree (Node tl tr w) i
+  | i < (w `div` 2) = lookupTree tl i
+  | otherwise       = lookupTree tr (i - w `div` 2)
+
+{-@ update ::
+      b:BinaryList a ->
+      {i : Nat  | i < binListLen b} ->
+      a ->
+      {b':BinaryList a | (getIndex b') == (getIndex b) &&
+                         (binListLen b') == (binListLen b)}
+  @-}
+update :: BinaryList a -> Int -> a -> BinaryList a
+update (Cons idx Zero ts) i e = Cons idx Zero (update ts i e)
+update (Cons idx (One t) ts) i e
+   | i < cachedTreeSize t = Cons idx (One $ updateTree t i e) ts
+   | otherwise            = Cons idx (One t) $ update ts (i - cachedTreeSize t) e
+
+{-@ updateTree ::
+      t:Tree a ->
+      {i:Nat | i < treeSize t} ->
+      a ->
+      {t':Tree a | (treeSize t') == (treeSize t)}
+  @-}
+updateTree :: Tree a -> Int -> a -> Tree a
+updateTree (Leaf _) 0 e  = (Leaf e)
+updateTree (Node tl tr w) i e
+  | i < w `div` 2 = Node (updateTree tl i e) tr w
+  | otherwise     = Node tl (updateTree tr (i - w `div` 2) e) w
