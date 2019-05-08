@@ -25,6 +25,7 @@ orderedSrcFiles = [
   , "Set/Set.hs"
   , "RandomAccessList/RandomAccessList.hs"
   , "RandomAccessList/SimpleRandomAccessList.hs"
+  , "RandomAccessList/BinaryRandomAccessList.hs"
   ]
 
 runLiquid :: String -> IO ExitCode
