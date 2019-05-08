@@ -1,5 +1,3 @@
-{-@ LIQUID "--ple" @-}
-
 module RandomAccessList.BinaryRandomAccessList where
 
 import Prelude hiding (head, tail, lookup)
@@ -37,48 +35,42 @@ data Digit a =
  - wrapper around the builtin type -}
 {-@ data BinaryList a =
       Nil {
-        nil_idx :: Nat
+        nil_size :: Nat
       }
     | Cons {
-       idx :: Nat,
-       hd  :: {v:Digit a | (isOne v) ==> (treeSize (tree v) == pow2 idx)},
-       tl  :: {v:BinaryList a | (getIndex v) == idx + 1}
+       size :: Nat,
+       hd   :: {v:Digit a | (isOne v) ==> (treeSize (tree v) == size)},
+       tl   :: {v:BinaryList a | (getSize v) == size * 2}
       }
   @-}
 data BinaryList a =
     Nil {
-      nil_idx :: Int
+      nil_size :: Int
     }
   | Cons {
-      idx :: Int,
-      hd  :: Digit a,
-      tl  :: BinaryList a
+      size :: Int,
+      hd   :: Digit a,
+      tl   :: BinaryList a
     } deriving Show
 
 {- A complete list as a result of a cons, tail or similar operation should
  - start at index 0. This constraint is omitted from the main data type since
  - partial lists are required for the recursive data definition and recursive
  - functions -}
-{-@ type CompleteBinaryList a = {v:BinaryList a | getIndex v == 0} @-}
+{-@ type CompleteBinaryList a = {v:BinaryList a | getSize v == 1} @-}
 
-{-@ reflect pow2 @-}
-{-@ pow2 :: Nat -> Nat @-}
-pow2 :: Int -> Int
-pow2 0 = 1
-pow2 n = 2 * (pow2 (n - 1))
-
-{-@ measure getIndex @-}
-{-@ getIndex ::
+{-@ measure getSize @-}
+{-@ getSize ::
       bl:BinaryList a ->
       {v:Nat |
         if (listLen bl) == 0 then
-          v == (nil_idx bl)
+          v == (nil_size bl)
         else
-          v == (idx bl)}
+          v == (size bl)}
   @-}
-getIndex :: BinaryList a -> Int
-getIndex (Nil idx)      = idx
-getIndex (Cons idx _ _) = idx
+getSize :: BinaryList a -> Int
+getSize (Nil size)      = size
+getSize (Cons size _ _) = size
 
 {- Calculate the number of elements in a tree. Since these are leaf trees, the
  - number of elements is equal to the number of leaves in the tree. This should
@@ -89,13 +81,6 @@ getIndex (Cons idx _ _) = idx
 treeSize :: Tree a -> Int
 treeSize (Leaf _)     = 1
 treeSize (Node l r _) = (treeSize l) + (treeSize r)
-
-{- The tree type stores the size of the tree. Rather than computing it, we can
- - just return this stored value. -}
-{-@ cachedTreeSize :: t:Tree a -> {v:Nat | v == treeSize t} @-}
-cachedTreeSize :: Tree a -> Int
-cachedTreeSize (Leaf _)     = 1
-cachedTreeSize (Node _ _ s) = s
 
 {- Calculate the raw lenght of a Binarylist. In this calculation, each tree
  - counts once. See list_size for counting total elements across all trees.-}
@@ -133,20 +118,20 @@ link t0 t1 = Node t0 t1 (treeSize t0 + treeSize t1)
 
 {-@ consTree ::
       t:Tree a ->
-      b:{v:BinaryList a | pow2 (getIndex v) == treeSize t} ->
-      {v:BinaryList a | getIndex v == getIndex b &&
+      b:{v:BinaryList a | getSize v == treeSize t} ->
+      {v:BinaryList a | getSize v == getSize b &&
                         binListLen v = (treeSize t) + (binListLen b)}
   @-}
 consTree :: Tree a -> BinaryList a -> BinaryList a
-consTree t (Nil s)               = Cons s (One t) (Nil (s + 1))
+consTree t (Nil s)               = Cons s (One t) (Nil (s * 2))
 consTree t (Cons s Zero ts)      = Cons s (One t) ts
 consTree t0 (Cons s (One t1) ts) = Cons s Zero (consTree (link t0 t1) ts)
 
 {-@ unconsTree ::
       b:{v:BinaryList a | binListLen v /= 0} ->
-      ({v:Tree a | pow2 (getIndex b) == treeSize v}, 
-       {v:BinaryList a | getIndex v == getIndex b &&
-                         binListLen v == binListLen b - pow2 (getIndex b)})
+      ({v:Tree a | getSize b == treeSize v}, 
+       {v:BinaryList a | getSize v == getSize b &&
+                         binListLen v == binListLen b - getSize b})
   @-}
 unconsTree :: BinaryList a -> (Tree a, BinaryList a)
 unconsTree (Cons s (One h) (Nil _)) = (h, Nil s)
@@ -156,7 +141,7 @@ unconsTree (Cons s Zero t)          =
   (tl, Cons s (One tr) t')
 
 {-@ empty :: {r:CompleteBinaryList a | 0 == binListLen r} @-}
-empty = Nil 0
+empty = Nil 1
 
 {-@ isEmpty ::
       r:(CompleteBinaryList a) ->
@@ -177,20 +162,11 @@ cons e bl = consTree (Leaf e) bl
   @-}
 head bl = let (Leaf e, _) = unconsTree bl in e
 
-{- I don't know why but, liquid won't do this substitution in-line without
- - explicitly referencing the lemma -}
-{-@ lemma_pow2Idx0 ::
-      b:CompleteBinaryList a ->
-      {v:() | 1 == pow2 (getIndex b)}
-  @-}
-lemma_pow2Idx0 :: BinaryList a -> ()
-lemma_pow2Idx0 _ = ()
-
 {-@ tail ::
       r:{v:CompleteBinaryList a | binListLen v /= 0} ->
       {v:CompleteBinaryList a | (binListLen v) == (binListLen r) - 1}
   @-}
-tail bl = let (_, t) = unconsTree bl in (flip const) (lemma_pow2Idx0 bl) $ t
+tail bl = let (_, t) = unconsTree bl in t
 
 {-@ lookup ::
       b:BinaryList a ->
@@ -198,10 +174,10 @@ tail bl = let (_, t) = unconsTree bl in (flip const) (lemma_pow2Idx0 bl) $ t
       a
   @-}
 lookup :: BinaryList a -> Int -> a
-lookup (Cons _ Zero ts) i  = lookup ts i
-lookup (Cons _ (One t) ts) i
-  | i < cachedTreeSize t = lookupTree t i
-  | otherwise            = lookup ts (i - cachedTreeSize t)
+lookup (Cons size Zero ts) i  = lookup ts i
+lookup (Cons size (One t) ts) i
+  | i < size   = lookupTree t i
+  | otherwise  = lookup ts (i - size)
 
 {-@ lookupTree ::
       t:Tree a ->
@@ -218,14 +194,14 @@ lookupTree (Node tl tr w) i
       b:BinaryList a ->
       {i : Nat  | i < binListLen b} ->
       a ->
-      {b':BinaryList a | (getIndex b') == (getIndex b) &&
+      {b':BinaryList a | (getSize b') == (getSize b) &&
                          (binListLen b') == (binListLen b)}
   @-}
 update :: BinaryList a -> Int -> a -> BinaryList a
-update (Cons idx Zero ts) i e = Cons idx Zero (update ts i e)
-update (Cons idx (One t) ts) i e
-   | i < cachedTreeSize t = Cons idx (One $ updateTree t i e) ts
-   | otherwise            = Cons idx (One t) $ update ts (i - cachedTreeSize t) e
+update (Cons size Zero ts) i e = Cons size Zero (update ts i e)
+update (Cons size (One t) ts) i e
+   | i < size  = Cons size (One $ updateTree t i e) ts
+   | otherwise = Cons size (One t) $ update ts (i - size) e
 
 {-@ updateTree ::
       t:Tree a ->
