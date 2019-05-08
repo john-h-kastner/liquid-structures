@@ -1,5 +1,7 @@
 module RandomAccessList.BinaryRandomAccessList where
 
+import RandomAccessList.RandomAccessList
+
 import Prelude hiding (head, tail, lookup)
 
 {- Defines the type for *complete* *binary* *leaf* trees -}
@@ -57,7 +59,15 @@ data BinaryList a =
  - start at index 0. This constraint is omitted from the main data type since
  - partial lists are required for the recursive data definition and recursive
  - functions -}
-{-@ type CompleteBinaryList a = {v:BinaryList a | getSize v == 1} @-}
+{-@ data CompleteBinaryList a =
+      CBL {
+        bl :: {v:BinaryList a | getSize v == 1}
+      }
+  @-}
+data CompleteBinaryList a =
+  CBL {
+    bl :: (BinaryList a)
+  }
 
 {-@ measure getSize @-}
 {-@ getSize ::
@@ -140,44 +150,16 @@ unconsTree (Cons s Zero t)          =
   let (Node tl tr _, t') = unconsTree t in
   (tl, Cons s (One tr) t')
 
-{-@ empty :: {r:CompleteBinaryList a | 0 == binListLen r} @-}
-empty = Nil 1
-
-{-@ isEmpty ::
-      r:(CompleteBinaryList a) ->
-      {v:Bool | v <=> (0 == binListLen r)}
-  @-}
-isEmpty bl = 0 == binListLen bl
-
-{-@ cons ::
-      a ->
-      r0:CompleteBinaryList a ->
-      {r1:CompleteBinaryList a | (binListLen r1) == (binListLen r0) + 1}
-  @-}
-cons e bl = consTree (Leaf e) bl
-
-{-@ head ::
-      {r:CompleteBinaryList a | binListLen r /= 0} ->
-      a
-  @-}
-head bl = let (Leaf e, _) = unconsTree bl in e
-
-{-@ tail ::
-      r:{v:CompleteBinaryList a | binListLen v /= 0} ->
-      {v:CompleteBinaryList a | (binListLen v) == (binListLen r) - 1}
-  @-}
-tail bl = let (_, t) = unconsTree bl in t
-
-{-@ lookup ::
+{-@ lookupBL ::
       b:BinaryList a ->
       {i:Nat | i < binListLen b} ->
       a
   @-}
-lookup :: BinaryList a -> Int -> a
-lookup (Cons size Zero ts) i  = lookup ts i
-lookup (Cons size (One t) ts) i
+lookupBL :: BinaryList a -> Int -> a
+lookupBL (Cons size Zero ts) i  = lookupBL ts i
+lookupBL (Cons size (One t) ts) i
   | i < size   = lookupTree t i
-  | otherwise  = lookup ts (i - size)
+  | otherwise  = lookupBL ts (i - size)
 
 {-@ lookupTree ::
       t:Tree a ->
@@ -190,18 +172,18 @@ lookupTree (Node tl tr w) i
   | i < (w `div` 2) = lookupTree tl i
   | otherwise       = lookupTree tr (i - w `div` 2)
 
-{-@ update ::
+{-@ updateBL ::
       b:BinaryList a ->
       {i : Nat  | i < binListLen b} ->
       a ->
       {b':BinaryList a | (getSize b') == (getSize b) &&
                          (binListLen b') == (binListLen b)}
   @-}
-update :: BinaryList a -> Int -> a -> BinaryList a
-update (Cons size Zero ts) i e = Cons size Zero (update ts i e)
-update (Cons size (One t) ts) i e
+updateBL :: BinaryList a -> Int -> a -> BinaryList a
+updateBL (Cons size Zero ts) i e = Cons size Zero (updateBL ts i e)
+updateBL (Cons size (One t) ts) i e
    | i < size  = Cons size (One $ updateTree t i e) ts
-   | otherwise = Cons size (One t) $ update ts (i - size) e
+   | otherwise = Cons size (One t) $ updateBL ts (i - size) e
 
 {-@ updateTree ::
       t:Tree a ->
@@ -214,3 +196,18 @@ updateTree (Leaf _) 0 e  = (Leaf e)
 updateTree (Node tl tr w) i e
   | i < w `div` 2 = Node (updateTree tl i e) tr w
   | otherwise     = Node tl (updateTree tr (i - w `div` 2) e) w
+
+instance RandomAccessList CompleteBinaryList where
+  {-@ instance measure rlen :: CompleteBinaryList a -> {v:Int | v >= 0}
+      rlen (CBL bl) = binListLen bl
+    @-}
+
+  empty = CBL $ Nil 1
+  isEmpty (CBL bl) = 0 == binListLen bl
+
+  cons e (CBL bl) = CBL $ consTree (Leaf e) bl
+  head (CBL bl) = let (Leaf e, _) = unconsTree bl in e
+  tail (CBL bl) = let (_, t) = unconsTree bl in CBL t
+
+  lookup (CBL bl) e =  lookupBL bl e
+  update (CBL bl) i e = CBL $ updateBL bl i e
