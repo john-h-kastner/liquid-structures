@@ -37,10 +37,10 @@ data Digit a =
  - wrapper around the builtin type -}
 {-@ data BinaryList a =
       Nil {
-        nil_size :: Nat
+        nil_size :: {v:Nat | v > 0}
       }
     | Cons {
-       size :: Nat,
+       size :: {v:Nat | v > 0},
        hd   :: {v:Digit a | (isOne v) ==> (treeSize (tree v) == size)},
        tl   :: {v:BinaryList a | (getSize v) == size * 2}
       }
@@ -87,7 +87,7 @@ getSize (Cons size _ _) = size
  - only be used as a measure. For getting the size of a tree at run time, use
  - cachedTreeSize -}
 {-@ measure treeSize @-}
-{-@ treeSize :: Tree a -> Nat @-}
+{-@ treeSize :: Tree a -> {v:Nat | v > 0} @-}
 treeSize :: Tree a -> Int
 treeSize (Leaf _)     = 1
 treeSize (Node l r _) = (treeSize l) + (treeSize r)
