@@ -77,6 +77,11 @@ case it is a prefix of every list. A list can be non-empty, in which case it is
 only the prefix of another list if they have same first element and the tail of
 the prefix is the prefix of the tail of the list.
 
+While introducing an extra field to hold an inductive predicate is an interesting
+method for enforcing invariants, it has a significant draw back. Constructing
+the proof incurs an extra cost at runtime. Enforcing invariants purely with
+refinement types incurs no cost at runtime.
+
 ```haskell
 data PhysicistsQueue a = PQ {
   lenf :: Nat,
