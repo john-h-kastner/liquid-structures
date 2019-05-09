@@ -2,6 +2,7 @@
 
 {-@ LIQUID "--exact-data-con" @-}
 {-@ LIQUID "--ple" @-}
+{-@ LIQUID "--prune-unsorted" @-}
 
 module Queue.PhysicistsQueue where
 
@@ -10,7 +11,7 @@ import Language.Haskell.Liquid.ProofCombinators
 import Prelude hiding (head, tail, reverse)
 import qualified Prelude (tail)
 
---import Queue.Queue
+import Queue.Queue
 
 {- The inductive predicates did not work well with Haskell's built in lists so,
  - I've included a custom list datatype. -}
@@ -117,10 +118,6 @@ data PhysicistsQueue a = PQ {
   isPrefix :: Prefix a
 }
 
-{-@ measure qlen @-}
-{-@ qlen :: PQ a -> Nat @-}
-qlen (PQ f _ r _ _ _) = f + r
-
 {-@ check :: forall a.
       lenf : Nat ->
       f    : {v:List a | llen v == lenf} ->
@@ -148,30 +145,18 @@ checkw :: Int -> List a -> Int -> List a -> List a -> Prefix a -> PQ a
 checkw lenf f lenr r Nil _ = PQ lenf f lenr r f (lemma_prefixSelf f)
 checkw lenf f lenr r w  p  = PQ lenf f lenr r w p
 
---instance Queue PhysicistsQueue where
+instance Queue PhysicistsQueue where
+  {-@ instance measure qlen :: PhysicistsQueue a -> Int
+      qlen (PQ f _ r _ _ _) = f + r
+    @-}
 
-{-@ empty :: {q:(PQ a) | 0 == qlen q} @-}
-empty = PQ 0 Nil 0 Nil Nil (PrefixNil Nil)
-
-{-@ isEmpty :: q:(PQ a) -> {v:Bool | v <=> (0 == qlen q)} @-}
-isEmpty (PQ f _ _ _ _ _) = f == 0
-
-{-@ snoc :: forall a.
-      q0:PQ a ->
-      a ->
-      {q1:PQ a | (qlen q1) == (qlen q0) + 1}
-  @-}
-snoc (PQ lenf f lenr r w p) x = check lenf f (lenr + 1) (Cons x r) w p
-
-{-@ head :: forall a.
-      {q:PQ a | qlen q /= 0} ->
-      a
-  @-}
-head (PQ _ _ _ _ (Cons x _) _) = x
-
-{-@ tail :: forall a.
-      {q0:PQ a | qlen q0 /= 0} ->
-      {q1:PQ a | (qlen q1) == (qlen q0) - 1}
-  @-}
-tail (PQ lenf (Cons _ f) lenr r (Cons _ w) (PrefixCons _ _ _ p)) =
-  check (lenf - 1) f lenr r w p
+  empty = PQ 0 Nil 0 Nil Nil (PrefixNil Nil)
+  
+  isEmpty (PQ f _ _ _ _ _) = f == 0
+  
+  snoc (PQ lenf f lenr r w p) x = check lenf f (lenr + 1) (Cons x r) w p
+  
+  head (PQ _ _ _ _ (Cons x _) _) = x
+  
+  tail (PQ lenf (Cons _ f) lenr r (Cons _ w) (PrefixCons _ _ _ p)) =
+    check (lenf - 1) f lenr r w p
