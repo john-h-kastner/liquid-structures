@@ -13,16 +13,11 @@ invariants, this project also attempts to use LiquidHaskell as a
 # [Queues](src/Queue/Queue.hs)
 
 The first and perhaps simplest abstract data type presented in the book is the
-first-in-first-out queue. The first queue implementation, the batched queue, is
-used as a [case study][4] in the LiquidHaskell tutorial, so I have opted not to
-reproduce it here. I have included two similar queues: the banker's and physicist's
-queue.
-
-The interface implemented by each concrete queue provides functions for adding
-to the end, reading and removing from the front, obtaining an empty queue and
-testing if a given queue is empty. The refinement types for these functions are
-used to track the length of a queue and to ensure that `head` and `tail` are
-never called on empty queues.
+first-in-first-out queue. The interface implemented by each concrete queue provides
+functions for adding to the end, reading and removing from the front, obtaining
+an empty queue and testing if a given queue is empty. The refinement types for
+these functions are used to track the length of a queue and to ensure that
+`head` and `tail` are never called on empty queues.
 
 ```haskell
 class measure qlen :: forall a. a -> Int
@@ -47,6 +42,9 @@ data structure. The first is some prefix of the queue while the second is the
 remaining suffix of the queue. The primary invariant is that the prefix list
 cannot be shorter than the suffix list. This is checked by LiquidHaskell
 according to the following refinement type for the queue constructor.
+
+This queue is used as a [case study][4] in the LiquidHaskell tutorial, but I have
+independently reproduced it here.
 
 ```haskell
 data BankersQueue a = BQ {
