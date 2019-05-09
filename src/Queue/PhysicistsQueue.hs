@@ -9,7 +9,6 @@ module Queue.PhysicistsQueue where
 import Language.Haskell.Liquid.ProofCombinators
 
 import Prelude hiding (head, tail, reverse)
-import qualified Prelude (tail)
 
 import Queue.Queue
 
