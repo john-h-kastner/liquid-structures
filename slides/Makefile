@@ -1,7 +1,4 @@
-slides.pdf: slides.tex
-	pdflatex $< > /dev/null
-
-slides.tex: slides.lhs haskell.xml
+slides.pdf: slides.lhs haskell.xml
 	liquid --diff --short-names $< &&\
 	pandoc --to=beamer\
 		   --from=markdown+lhs\
@@ -11,4 +8,4 @@ slides.tex: slides.lhs haskell.xml
 		   $<
 
 clean:
-	rm -f slides.pdf slides.tex *.aux *.log *.nav *.snm *.vrb *.toc
+	rm -f slides.pdf
