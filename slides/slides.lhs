@@ -1,5 +1,6 @@
 ---
-title: "Liquid-Structures: statically verifying data structure invariants with LiquidHaskell"
+title: "Liquid-Structures"
+subtitle:  "statically verifying data structure invariants with LiquidHaskell"
 author: "John Kastner"
 ---
 
@@ -190,36 +191,29 @@ tail    :: BQ a -> BQ a
 \end{code}
 -->
 
+=== Snoc
+
 * An element can be added to a queue
 * This maintains invariants and increments the length
 
 \begin{code}
-{-@ snoc ::
-      q0:BQ a ->
-      a ->
-      {q1:BQ a | (qlen q1) == (qlen q0) + 1}
-  @-}
-snoc (BQ lenf f lenr r) x =
-  check lenf f (lenr + 1) (x : r)
+{-@ snoc :: q0:BQ a -> a ->
+            {q1:BQ a | (qlen q1) == (qlen q0) + 1} @-}
+snoc (BQ lenf f lenr r) x = check lenf f (lenr+1) (x:r)
 \end{code}
 
----
+=== Head and tail
 
-* After adding an element, it can be retreived and removed
-* Both functions require non-empty queues as specified by `qlen q /= 0`
+* After adding an element, it can be retrieved and removed
+* Both functions require non-empty queues 
 
 \begin{code}
-{-@ head ::
-      {q:BQ a | qlen q /= 0} ->
-      a
-  @-}
+{-@ head :: {q:BQ a | qlen q /= 0} -> a @-}
 head (BQ lenf (x : f') lenr r) = x
 
-{-@ tail ::
-      {q0:BQ a | qlen q0 /= 0} ->
-      {q1:BQ a | (qlen q1) == (qlen q0) - 1}
-  @-}
-tail (BQ lenf (x : f') lenr r) = check (lenf - 1) f' lenr r
+{-@ tail :: {q0:BQ a | qlen q0 /= 0} ->
+            {q1:BQ a | (qlen q1) == (qlen q0) - 1} @-}
+tail (BQ lenf (x : f') lenr r) = check (lenf-1) f' lenr r
 \end{code}
 
 = Red-Black Tree
@@ -262,22 +256,174 @@ type RB a = RedBlackSet a
 \end{code}
 -->
 
+* BST ordering is enforced by recursive refinements on the sub-trees.
+* Red and black invariants are enforced by respective predicates
+
 \begin{code}
 data Color = Red | Black deriving Eq
 {-@ data RedBlackSet a = Empty |
-      Tree {
-        color :: Color,
-        val   :: a,
-        left  :: {v:RB {vv:a | vv < val} |
-                   RedInvariant color v},
-        right :: {v:RB {vv:a | vv > val} |
-                   RedInvariant color v &&
-                   BlackInvariant v left}
-      }
-   @-}
-
+      Tree { color :: Color,
+             val   :: a,
+             left  :: {v:RedBlackSet {vv:a | vv < val} |
+                        RedInvariant color v},
+             right :: {v:RedBlackSet {vv:a | vv > val} |
+                        RedInvariant color v &&
+                        BlackInvariant v left}}@-}
 {-@ predicate RedInvariant C S =
       (C == Red) ==> (getColor S /= Red) @-}
 {-@ predicate BlackInvariant S0 S1 =
       (numBlack S0) == (numBlack S1) @-}
 \end{code}
+
+== Red-Black Tree Insertion
+
+* We can try to write an insertion function for red-black trees
+* This is nontrivial and we might do it wrong
+
+```haskell
+insert x Empty = Tree Red x Empty Empty
+insert x t@(Tree c y a b) | x<y = Tree c y (insert x a) b
+                          | x>y = Tree c y a (insert x b)
+                          | otherwise = t
+```
+
+* LiquidHaskell will generate a warning if this error causes the data structures
+  invariants to no longer hold
+
+```
+284 |   | x < y     = Tree c y (insert x a) b
+                                ^^^^^^^^^^^^
+   Inferred type
+     VV : {v : (Main.RedBlackSet a##xo) | numBlack v >= 0
+                                          && v == ?a}
+   not a subtype of Required type
+     VV : {VV : (Main.RedBlackSet {VV : a##xo | VV < y}) | 
+       c == Red => getColor VV /= Red}
+```
+== Red-Black Tree Balancing
+
+* There is a function to fix an incomplete Red-Black Tree 
+
+![](red-black.pdf){ height=70% }
+
+Diagram taken from *Purely Function Data Structures*
+
+== Red-Black Tree (Real) Insertion
+
+<!--
+\begin{code}
+rb_insert_aux :: Ord a => a -> RedBlackSet a -> WeakRedInvariant a
+\end{code}
+-->
+
+\begin{code}
+{-@ rb_insert_aux :: forall a. Ord a =>
+      x:a ->
+      s:RedBlackSet a ->
+      {v:WeakRedInvariant a |
+        (getColor s /= Red ==> HasStrongRedInvariant v) &&
+        (weakNumBlack v) == (numBlack s)}
+  @-}
+rb_insert_aux x Empty = WeakRedInvariant Red x Empty Empty
+rb_insert_aux x (Tree c y a b)
+  | x < y     = balanceLeft c y (rb_insert_aux x a) b
+  | x > y     = balanceRight c y a (rb_insert_aux x b)
+  | otherwise = (WeakRedInvariant c y a b)
+
+{-@ insert :: e:a -> v:RedBlackSet a -> RedBlackSet a @-}
+insert x s = forceRedInvarient (rb_insert_aux x s)
+  where forceRedInvarient (WeakRedInvariant _ e a b) =
+          Tree Black e a b
+\end{code}
+
+== An Extra Data Type
+
+* During insertions and balancing, there are values that are almost red-black
+  trees but are missing part of the red invariant
+* This type gives an easy way to represent these values and a way to describe
+  when the invariant does hold
+<!--
+\begin{code}
+data WeakRedInvariant a = WeakRedInvariant {
+  weakColor :: Color,
+  weakVal   :: a,
+  weakLeft  :: RedBlackSet a,
+  weakRight :: RedBlackSet a
+}
+
+{-@ measure weakNumBlack @-}
+{-@ weakNumBlack :: WeakRedInvariant a -> Nat @-}
+weakNumBlack :: WeakRedInvariant a -> Int
+weakNumBlack (WeakRedInvariant c _ l r) = (if c == Black then 1 else 0) + (numBlack l)
+\end{code}
+-->
+
+\begin{code}
+{-@ data WeakRedInvariant a = WeakRedInvariant {
+        weakColor :: Color,
+        weakVal   :: a,
+        weakLeft  :: RedBlackSet {vv:a | vv < weakVal},
+        weakRight :: {v:RedBlackSet {vv:a | vv > weakVal}|
+          (weakColor /= Red || 
+          (getColor weakLeft) /= Red ||
+          (getColor v) /= Red) &&
+          (numBlack v) == (numBlack weakLeft)}} @-}
+{-@ predicate HasStrongRedInvariant Wri =
+      (weakColor Wri) == Red ==>
+      (getColor (weakLeft Wri) /= Red &&
+       getColor (weakRight Wri) /= Red) @-}
+\end{code}
+
+== Red-Black Tree Balancing Functions
+
+* Smart constructor for red-black trees
+* Only partialy guarentees the red invariant
+* Full invariant obtained in other calls to balance during
+  recursion of after all recursion finishes
+
+\begin{code}
+{-@ balanceLeft :: forall a. Ord a =>
+      c:Color ->
+      t:a ->
+      l:{v:WeakRedInvariant {vv:a | vv < t} |
+           c == Red ==> HasStrongRedInvariant v} ->
+      r:{v:RedBlackSet {vv:a | vv > t} |
+           RedInvariant c v &&
+           (numBlack v) == (weakNumBlack l)} ->
+      {v:WeakRedInvariant a |
+           (c /= Red ==> HasStrongRedInvariant v) &&
+           (weakNumBlack v) ==
+             (if c==Black then 1 else 0) + weakNumBlack l}
+  @-}
+\end{code}
+
+<!--
+\begin{code}
+balanceLeft :: Ord a => Color -> a -> WeakRedInvariant a -> RedBlackSet a -> WeakRedInvariant a
+balanceLeft Black z (WeakRedInvariant Red y (Tree Red x a b) c) d =
+  WeakRedInvariant Red y (Tree Black x a b) (Tree Black z c d)
+balanceLeft Black z (WeakRedInvariant Red x a (Tree Red y b c)) d =
+  WeakRedInvariant Red y (Tree Black x a b) (Tree Black z c d)
+balanceLeft c x (WeakRedInvariant c' x' a' b' ) b =
+  WeakRedInvariant c x (Tree c' x' a' b') b
+
+{-@ balanceRight :: forall a. Ord a =>
+      c:Color ->
+      t:a ->
+      l:{v:RedBlackSet {vv:a | vv < t} | RedInvariant c v} ->
+
+      r:{v:WeakRedInvariant {vv:a | vv > t} | (c == Red ==> HasStrongRedInvariant v) &&
+                                              (weakNumBlack v) == (numBlack l)} ->
+
+      {v:WeakRedInvariant a | (c /= Red ==> HasStrongRedInvariant v) &&
+                              (weakNumBlack v) == (if c == Black then 1 else 0) + numBlack l}
+   @-}
+balanceRight :: Ord a => Color -> a -> RedBlackSet a -> WeakRedInvariant a -> WeakRedInvariant a
+balanceRight Black x a (WeakRedInvariant Red z (Tree Red y b c) d ) =
+  WeakRedInvariant Red y (Tree Black x a b) (Tree Black z c d)
+balanceRight Black x a (WeakRedInvariant Red y b (Tree Red z c d) ) =
+  WeakRedInvariant Red y (Tree Black x a b) (Tree Black z c d)
+balanceRight c x a (WeakRedInvariant c' x' a' b' ) =
+  WeakRedInvariant c x a (Tree c' x' a' b')
+\end{code}
+-->
