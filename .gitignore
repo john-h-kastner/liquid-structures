@@ -3,3 +3,12 @@ liquid-structures.cabal
 *~
 .liquid
 coqtop.log
+
+*.aux
+*.log
+*.nav
+*.snm
+*.vrb
+*.toc
+
+slides.tex
