@@ -1,7 +1,6 @@
 all: slides.pdf
 
 slides.pdf: slides.lhs haskell.xml liquid_logo.png red-black.pdf
-	liquid --short-names $< &&
 	pandoc --to=beamer\
 		   --from=markdown+lhs\
 		   --syntax-definition haskell.xml\

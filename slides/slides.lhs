@@ -141,6 +141,8 @@ data BankersQueue a = BQ {
 \end{code}
 -->
 
+== Banker's Queue Datatype
+
 \begin{code}
 {-@ data BankersQueue a = BQ {
       lenf :: Nat,
@@ -154,6 +156,28 @@ data BankersQueue a = BQ {
   @-}
 type BQ a = BankersQueue a
 \end{code}
+
+== Catching a Violated Invariant
+
+* Using this definition, (some) errors will be automatically detected
+
+```haskell
+snoc (BQ lenf f lenr r) x = BQ lenf f (lenr+1) (x:r)
+```        
+
+* LiquidHaskell finds that `snoc` does not maintain the length invariant
+  between the front and rear
+
+```
+165 | snoc (BQ lenf f lenr r) x = BQ lenf f (lenr+1) (x:r)
+                                             ^^^^^^^^
+  Inferred type
+    VV : {v : GHC.Types.Int | v == lenr + 1}
+
+  not a subtype of Required type
+    VV : {VV : GHC.Types.Int | VV >= 0
+                               && VV <= lenf}
+```
 
 == Smart Constructor
 
@@ -317,6 +341,11 @@ rb_insert_aux :: Ord a => a -> RedBlackSet a -> WeakRedInvariant a
 -->
 
 \begin{code}
+{-@ insert :: e:a -> v:RedBlackSet a -> RedBlackSet a @-}
+insert x s = forceRedInvarient (rb_insert_aux x s)
+  where forceRedInvarient (WeakRedInvariant _ e a b) =
+          Tree Black e a b
+
 {-@ rb_insert_aux :: forall a. Ord a =>
       x:a ->
       s:RedBlackSet a ->
@@ -329,11 +358,6 @@ rb_insert_aux x (Tree c y a b)
   | x < y     = balanceLeft c y (rb_insert_aux x a) b
   | x > y     = balanceRight c y a (rb_insert_aux x b)
   | otherwise = (WeakRedInvariant c y a b)
-
-{-@ insert :: e:a -> v:RedBlackSet a -> RedBlackSet a @-}
-insert x s = forceRedInvarient (rb_insert_aux x s)
-  where forceRedInvarient (WeakRedInvariant _ e a b) =
-          Tree Black e a b
 \end{code}
 
 == An Extra Data Type
@@ -377,7 +401,7 @@ weakNumBlack (WeakRedInvariant c _ l r) = (if c == Black then 1 else 0) + (numBl
 == Red-Black Tree Balancing Functions
 
 * Smart constructor for red-black trees
-* Only partialy guarentees the red invariant
+* Only partially guarantees the red invariant
 * Full invariant obtained in other calls to balance during
   recursion of after all recursion finishes
 
@@ -406,18 +430,29 @@ balanceLeft Black z (WeakRedInvariant Red x a (Tree Red y b c)) d =
   WeakRedInvariant Red y (Tree Black x a b) (Tree Black z c d)
 balanceLeft c x (WeakRedInvariant c' x' a' b' ) b =
   WeakRedInvariant c x (Tree c' x' a' b') b
+\end{code}
+-->
 
+== Red-Black Tree Balancing Functions
+
+\begin{code}
 {-@ balanceRight :: forall a. Ord a =>
       c:Color ->
       t:a ->
-      l:{v:RedBlackSet {vv:a | vv < t} | RedInvariant c v} ->
-
-      r:{v:WeakRedInvariant {vv:a | vv > t} | (c == Red ==> HasStrongRedInvariant v) &&
-                                              (weakNumBlack v) == (numBlack l)} ->
-
-      {v:WeakRedInvariant a | (c /= Red ==> HasStrongRedInvariant v) &&
-                              (weakNumBlack v) == (if c == Black then 1 else 0) + numBlack l}
+      l:{v:RedBlackSet {vv:a | vv < t} |
+           RedInvariant c v} ->
+      r:{v:WeakRedInvariant {vv:a | vv > t} |
+           (c == Red ==> HasStrongRedInvariant v) &&
+           (weakNumBlack v) == (numBlack l)} ->
+      {v:WeakRedInvariant a |
+           (c /= Red ==> HasStrongRedInvariant v) &&
+           (weakNumBlack v) ==
+             (if c == Black then 1 else 0) + numBlack l}
    @-}
+\end{code}
+
+<!--
+\begin{code}
 balanceRight :: Ord a => Color -> a -> RedBlackSet a -> WeakRedInvariant a -> WeakRedInvariant a
 balanceRight Black x a (WeakRedInvariant Red z (Tree Red y b c) d ) =
   WeakRedInvariant Red y (Tree Black x a b) (Tree Black z c d)
