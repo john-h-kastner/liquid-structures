@@ -2,6 +2,7 @@
 title: "Liquid-Structures"
 subtitle:  "statically verifying data structure invariants with LiquidHaskell"
 author: "John Kastner"
+toc: yes
 ---
 
 <!-- Preamble that will not be rendered in final output
@@ -141,8 +142,6 @@ data BankersQueue a = BQ {
 \end{code}
 -->
 
-== Banker's Queue Datatype
-
 \begin{code}
 {-@ data BankersQueue a = BQ {
       lenf :: Nat,
@@ -270,11 +269,11 @@ data RedBlackTree a =
 getColor Empty          = Black
 getColor (Tree c _ _ _) = c
 
-{-@ measure numBlack @-}
-{-@ numBlack :: RedBlackTree a -> Nat @-}
-numBlack :: RedBlackTree a -> Int
-numBlack Empty          = 0
-numBlack (Tree c _ l r) = (if c == Black then 1 else 0) + (numBlack l)
+{-@ measure blackHeight @-}
+{-@ blackHeight :: RedBlackTree a -> Nat @-}
+blackHeight :: RedBlackTree a -> Int
+blackHeight Empty          = 0
+blackHeight (Tree c _ l r) = (if c == Black then 1 else 0) + (blackHeight l)
 \end{code}
 -->
 
@@ -294,7 +293,7 @@ data Color = Red | Black deriving Eq
 {-@ predicate RedInvariant C S =
       (C == Red) ==> (getColor S /= Red) @-}
 {-@ predicate BlackInvariant S0 S1 =
-      (numBlack S0) == (numBlack S1) @-}
+      (blackHeight S0) == (blackHeight S1) @-}
 \end{code}
 
 == Red-Black Tree Insertion
@@ -316,10 +315,10 @@ insert x t@(Tree c y a b) | x<y = Tree c y (insert x a) b
 284 |   | x < y     = Tree c y (insert x a) b
                                 ^^^^^^^^^^^^
    Inferred type
-     VV : {v : (Main.RedBlackTree a##xo) | numBlack v >= 0
-                                          && v == ?a}
+     VV:{v:(Main.RedBlackTree a##xo) | blackHeight v >= 0
+                                       && v == ?a}
    not a subtype of Required type
-     VV : {VV : (Main.RedBlackTree {VV : a##xo | VV < y}) | 
+     VV:{VV:(Main.RedBlackTree {VV:a##xo | VV < y}) | 
        c == Red => getColor VV /= Red}
 ```
 == Red-Black Tree Balancing
@@ -348,8 +347,8 @@ insert x s = forceRedInvarient (rb_insert_aux x s)
       x:a ->
       s:RedBlackTree a ->
       {v:WeakRedInvariant a |
-        (getColor s /= Red ==> HasStrongRedInvariant v) &&
-        (weakNumBlack v) == (numBlack s)}
+        (getColor s /= Red ==> HasStrongRedInvariant v)&&
+        (weakBlackHeight v) == (blackHeight s)}
   @-}
 rb_insert_aux x Empty = WeakRedInvariant Red x Empty Empty
 rb_insert_aux x (Tree c y a b)
@@ -373,10 +372,10 @@ data WeakRedInvariant a = WeakRedInvariant {
   weakRight :: RedBlackTree a
 }
 
-{-@ measure weakNumBlack @-}
-{-@ weakNumBlack :: WeakRedInvariant a -> Nat @-}
-weakNumBlack :: WeakRedInvariant a -> Int
-weakNumBlack (WeakRedInvariant c _ l r) = (if c == Black then 1 else 0) + (numBlack l)
+{-@ measure weakBlackHeight @-}
+{-@ weakBlackHeight :: WeakRedInvariant a -> Nat @-}
+weakBlackHeight :: WeakRedInvariant a -> Int
+weakBlackHeight (WeakRedInvariant c _ l r) = (if c == Black then 1 else 0) + (blackHeight l)
 \end{code}
 -->
 
@@ -389,7 +388,7 @@ weakNumBlack (WeakRedInvariant c _ l r) = (if c == Black then 1 else 0) + (numBl
           (weakColor /= Red || 
           (getColor weakLeft) /= Red ||
           (getColor v) /= Red) &&
-          (numBlack v) == (numBlack weakLeft)}} @-}
+          (blackHeight v) == (blackHeight weakLeft)}} @-}
 {-@ predicate HasStrongRedInvariant Wri =
       (weakColor Wri) == Red ==>
       (getColor (weakLeft Wri) /= Red &&
@@ -411,11 +410,11 @@ weakNumBlack (WeakRedInvariant c _ l r) = (if c == Black then 1 else 0) + (numBl
            c == Red ==> HasStrongRedInvariant v} ->
       r:{v:RedBlackTree {vv:a | vv > t} |
            RedInvariant c v &&
-           (numBlack v) == (weakNumBlack l)} ->
+           (blackHeight v) == (weakBlackHeight l)} ->
       {v:WeakRedInvariant a |
            (c /= Red ==> HasStrongRedInvariant v) &&
-           (weakNumBlack v) ==
-             (if c==Black then 1 else 0) + weakNumBlack l}
+           (weakBlackHeight v) ==
+           (if c==Black then 1 else 0)+weakBlackHeight l}
   @-}
 \end{code}
 
@@ -441,11 +440,11 @@ balanceLeft c x (WeakRedInvariant c' x' a' b' ) b =
            RedInvariant c v} ->
       r:{v:WeakRedInvariant {vv:a | vv > t} |
            (c == Red ==> HasStrongRedInvariant v) &&
-           (weakNumBlack v) == (numBlack l)} ->
+           (weakBlackHeight v) == (blackHeight l)} ->
       {v:WeakRedInvariant a |
            (c /= Red ==> HasStrongRedInvariant v) &&
-           (weakNumBlack v) ==
-             (if c == Black then 1 else 0) + numBlack l}
+           (weakBlackHeight v) ==
+           (if c==Black then 1 else 0)+blackHeight l}
    @-}
 \end{code}
 
