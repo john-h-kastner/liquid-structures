@@ -256,27 +256,25 @@ tail (BQ lenf (x : f') lenr r) = check (lenf-1) f' lenr r
 
 <!--
 \begin{code}
-data RedBlackSet a =
+data RedBlackTree a =
   Empty |
   Tree {
     color   :: Color,
     rbval   :: a,
-    rbleft  :: RedBlackSet a,
-    rbright :: RedBlackSet a
+    rbleft  :: RedBlackTree a,
+    rbright :: RedBlackTree a
   }
 
 {-@ measure getColor @-}
-{-@ getColor :: RB a -> Color @-}
+{-@ getColor :: RedBlackTree a -> Color @-}
 getColor Empty          = Black
 getColor (Tree c _ _ _) = c
 
 {-@ measure numBlack @-}
-{-@ numBlack :: RB a -> Nat @-}
-numBlack :: RB a -> Int
+{-@ numBlack :: RedBlackTree a -> Nat @-}
+numBlack :: RedBlackTree a -> Int
 numBlack Empty          = 0
 numBlack (Tree c _ l r) = (if c == Black then 1 else 0) + (numBlack l)
-
-type RB a = RedBlackSet a
 \end{code}
 -->
 
@@ -285,12 +283,12 @@ type RB a = RedBlackSet a
 
 \begin{code}
 data Color = Red | Black deriving Eq
-{-@ data RedBlackSet a = Empty |
+{-@ data RedBlackTree a = Empty |
       Tree { color :: Color,
              val   :: a,
-             left  :: {v:RedBlackSet {vv:a | vv < val} |
+             left  :: {v:RedBlackTree {vv:a | vv < val} |
                         RedInvariant color v},
-             right :: {v:RedBlackSet {vv:a | vv > val} |
+             right :: {v:RedBlackTree {vv:a | vv > val} |
                         RedInvariant color v &&
                         BlackInvariant v left}}@-}
 {-@ predicate RedInvariant C S =
@@ -318,10 +316,10 @@ insert x t@(Tree c y a b) | x<y = Tree c y (insert x a) b
 284 |   | x < y     = Tree c y (insert x a) b
                                 ^^^^^^^^^^^^
    Inferred type
-     VV : {v : (Main.RedBlackSet a##xo) | numBlack v >= 0
+     VV : {v : (Main.RedBlackTree a##xo) | numBlack v >= 0
                                           && v == ?a}
    not a subtype of Required type
-     VV : {VV : (Main.RedBlackSet {VV : a##xo | VV < y}) | 
+     VV : {VV : (Main.RedBlackTree {VV : a##xo | VV < y}) | 
        c == Red => getColor VV /= Red}
 ```
 == Red-Black Tree Balancing
@@ -336,19 +334,19 @@ Diagram taken from *Purely Function Data Structures*
 
 <!--
 \begin{code}
-rb_insert_aux :: Ord a => a -> RedBlackSet a -> WeakRedInvariant a
+rb_insert_aux :: Ord a => a -> RedBlackTree a -> WeakRedInvariant a
 \end{code}
 -->
 
 \begin{code}
-{-@ insert :: e:a -> v:RedBlackSet a -> RedBlackSet a @-}
+{-@ insert :: e:a -> v:RedBlackTree a -> RedBlackTree a @-}
 insert x s = forceRedInvarient (rb_insert_aux x s)
   where forceRedInvarient (WeakRedInvariant _ e a b) =
           Tree Black e a b
 
 {-@ rb_insert_aux :: forall a. Ord a =>
       x:a ->
-      s:RedBlackSet a ->
+      s:RedBlackTree a ->
       {v:WeakRedInvariant a |
         (getColor s /= Red ==> HasStrongRedInvariant v) &&
         (weakNumBlack v) == (numBlack s)}
@@ -371,8 +369,8 @@ rb_insert_aux x (Tree c y a b)
 data WeakRedInvariant a = WeakRedInvariant {
   weakColor :: Color,
   weakVal   :: a,
-  weakLeft  :: RedBlackSet a,
-  weakRight :: RedBlackSet a
+  weakLeft  :: RedBlackTree a,
+  weakRight :: RedBlackTree a
 }
 
 {-@ measure weakNumBlack @-}
@@ -386,8 +384,8 @@ weakNumBlack (WeakRedInvariant c _ l r) = (if c == Black then 1 else 0) + (numBl
 {-@ data WeakRedInvariant a = WeakRedInvariant {
         weakColor :: Color,
         weakVal   :: a,
-        weakLeft  :: RedBlackSet {vv:a | vv < weakVal},
-        weakRight :: {v:RedBlackSet {vv:a | vv > weakVal}|
+        weakLeft  :: RedBlackTree {vv:a | vv<weakVal},
+        weakRight :: {v:RedBlackTree {vv:a | vv>weakVal}|
           (weakColor /= Red || 
           (getColor weakLeft) /= Red ||
           (getColor v) /= Red) &&
@@ -411,7 +409,7 @@ weakNumBlack (WeakRedInvariant c _ l r) = (if c == Black then 1 else 0) + (numBl
       t:a ->
       l:{v:WeakRedInvariant {vv:a | vv < t} |
            c == Red ==> HasStrongRedInvariant v} ->
-      r:{v:RedBlackSet {vv:a | vv > t} |
+      r:{v:RedBlackTree {vv:a | vv > t} |
            RedInvariant c v &&
            (numBlack v) == (weakNumBlack l)} ->
       {v:WeakRedInvariant a |
@@ -423,7 +421,7 @@ weakNumBlack (WeakRedInvariant c _ l r) = (if c == Black then 1 else 0) + (numBl
 
 <!--
 \begin{code}
-balanceLeft :: Ord a => Color -> a -> WeakRedInvariant a -> RedBlackSet a -> WeakRedInvariant a
+balanceLeft :: Ord a => Color -> a -> WeakRedInvariant a -> RedBlackTree a -> WeakRedInvariant a
 balanceLeft Black z (WeakRedInvariant Red y (Tree Red x a b) c) d =
   WeakRedInvariant Red y (Tree Black x a b) (Tree Black z c d)
 balanceLeft Black z (WeakRedInvariant Red x a (Tree Red y b c)) d =
@@ -439,7 +437,7 @@ balanceLeft c x (WeakRedInvariant c' x' a' b' ) b =
 {-@ balanceRight :: forall a. Ord a =>
       c:Color ->
       t:a ->
-      l:{v:RedBlackSet {vv:a | vv < t} |
+      l:{v:RedBlackTree {vv:a | vv < t} |
            RedInvariant c v} ->
       r:{v:WeakRedInvariant {vv:a | vv > t} |
            (c == Red ==> HasStrongRedInvariant v) &&
@@ -453,7 +451,7 @@ balanceLeft c x (WeakRedInvariant c' x' a' b' ) b =
 
 <!--
 \begin{code}
-balanceRight :: Ord a => Color -> a -> RedBlackSet a -> WeakRedInvariant a -> WeakRedInvariant a
+balanceRight :: Ord a => Color -> a -> RedBlackTree a -> WeakRedInvariant a -> WeakRedInvariant a
 balanceRight Black x a (WeakRedInvariant Red z (Tree Red y b c) d ) =
   WeakRedInvariant Red y (Tree Black x a b) (Tree Black z c d)
 balanceRight Black x a (WeakRedInvariant Red y b (Tree Red z c d) ) =
