@@ -8,6 +8,27 @@ modified to facilitate the addition of refinement types. There are also some
 structures that were not taken from the book. These tend to be simpler structures
 used to experiment with and learn LiquidHaskell.
 
+# Verifying the Implementations
+
+## Verify the entire project
+
+  1. Install Haskell Stack either through get.haskellstack.org or through your
+     package manager. 
+  2. Execute `stack test`. This will obtain the required version of GHC,
+     LiquidHaskell and all other dependencies before building project and
+     checking it with LiquidHaskell. This will take a while.
+
+## Verifying single files
+
+  1. Install LiquidHaskell according to [their instructions](https://github.com/ucsd-progsys/liquidhaskell/blob/develop/INSTALL.md).
+  2. Navigate to the `src` directory and Run `liquid` on an individual file and
+     all files that are imported by that file.
+
+```
+cd src
+liquid Heap/Heap.hs Heap/LeftistHeap.hs
+```
+
 # [Queues](src/Queue/Queue.hs)
 
 The first and perhaps simplest abstract data type presented in the book is the
