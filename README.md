@@ -6,9 +6,7 @@ checked using [LiquidHaskell][2]. The implementations are based on the those
 provided in the appendix of Okasaki's book but, in many cases they have been
 modified to facilitate the addition of refinement types. There are also some
 structures that were not taken from the book. These tend to be simpler structures
-used to experiment with and learn LiquidHaskell.  Beyond simply ensuring
-invariants, this project also attempts to use LiquidHaskell as a
-[theorem prover][3] to prove other interesting properties.
+used to experiment with and learn LiquidHaskell.
 
 # [Queues](src/Queue/Queue.hs)
 
@@ -70,7 +68,10 @@ queue. The remaining two fields encode the more interesting second prefix list.
 The list itself is stored as `pre`. The refinement for `pre` forces the second
 prefix to be non-empty if the original prefix is not empty. The final field,
 `isPrefix` encodes the actual prefix relationship between `pre` and `f`. This
-is done using an inductive predicate similar to what can be used in Coq.
+is done using an inductive predicate similar to what can be used in Coq. To do
+this in Haskell, LiquidHaskell can be used as a [theorem prover][3] which provides
+the means for writing such predicates and the ability to construct proofs using
+the predicates.
 
 The inductive predicate for prefix has two cases. A list can be empty, in which
 case it is a prefix of every list. A list can be non-empty, in which case it is
