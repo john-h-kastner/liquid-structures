@@ -6,7 +6,7 @@ import Prelude hiding (head, tail)
  - type. Nat is recognized elsewhere in this file, so this could be a problem
  - with LiquidHaskell but, I haven't spent much time looking into this. -}
 
-{-@ class measure qlen :: forall a. a -> Int @-}
+{-@ class measure qlen :: forall a. a -> {v:Int | v >= 0} @-}
 
 {-@ class Queue q where
       empty   :: forall a.

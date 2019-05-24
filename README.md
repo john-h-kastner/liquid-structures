@@ -39,7 +39,7 @@ these functions are used to track the length of a queue and to ensure that
 `head` and `tail` are never called on empty queues.
 
 ```haskell
-class measure qlen :: forall a. a -> Int
+class measure qlen :: forall a. a -> {v:Int | v >= 0}
 class Queue q where
   empty   :: forall a.
     {q:(q a) | 0 == qlen q}
