@@ -21,6 +21,12 @@ dependencies:
 library:
   source-dirs: src
 
+executable:
+    main: site.hs
+    dependencies: 
+    - hakyll 
+    - pandoc
+
 tests:
   liquid-structures-test:
     main:                Test.hs

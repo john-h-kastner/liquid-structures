@@ -15,3 +15,5 @@ extra-deps:
 - located-base-0.1.1.1
 - text-format-0.3.2
 - tasty-rerun-1.1.14
+- hakyll-4.12.5.2
+- lrucache-1.2.0.1
