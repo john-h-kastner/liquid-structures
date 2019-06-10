@@ -12,3 +12,7 @@ coqtop.log
 *.toc
 
 slides.tex
+
+_cache/
+_site/
+_liquid-markdown/
