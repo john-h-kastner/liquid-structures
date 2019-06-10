@@ -16,8 +16,8 @@ runAllLiquid = mconcat <$> mapM runLiquid orderedSrcFiles
 
 orderedSrcFiles :: [String]
 orderedSrcFiles = [
-    "Queue/Queue.hs"
-  , "Queue/BankersQueue.hs"
+    "Queue/Queue.lhs"
+  , "Queue/BankersQueue.lhs"
   , "Queue/PhysicistsQueue.hs"
   , "Heap/Heap.hs"
   , "Heap/SortedListHeap.hs"

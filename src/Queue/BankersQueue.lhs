@@ -1,3 +1,4 @@
+\begin{code}
 module Queue.BankersQueue where
 
 {- DONE:
@@ -57,3 +58,4 @@ instance Queue BankersQueue where
   snoc (BQ lenf f lenr r) x = check lenf f (lenr + 1) (x : r)
   head (BQ lenf (x : f') lenr r) = x
   tail (BQ lenf (x : f') lenr r) = check (lenf - 1) f' lenr r
+\end{code}
