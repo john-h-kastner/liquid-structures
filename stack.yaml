@@ -5,9 +5,9 @@ packages:
 
 extra-deps:
 - github: ucsd-progsys/liquidhaskell
-  commit: fe4062f339f11d4390f0b0803062f2a8f0d23dea
+  commit: ade1777fd8ecbe5911bcc559f719fffc18c95c42
 - github: ucsd-progsys/liquid-fixpoint
-  commit: 5d2eb8fac5bc3b9a8b0cfa51afa7e5e9aa93729f
+  commit: 90639c516a3b1f0e42a7aea489421d27e416667f
 - csv-table-0.1.0.1
 - dotgen-0.4.2
 - fgl-visualize-0.1.0.1
