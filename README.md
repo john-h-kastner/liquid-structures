@@ -15,7 +15,7 @@ used to experiment with and learn LiquidHaskell.
   1. Install Haskell Stack either through get.haskellstack.org or through your
      package manager. 
   2. Execute `stack test`. This will obtain the required version of GHC,
-     LiquidHaskell and all other dependencies before building project and
+     LiquidHaskell, and all other dependencies before building the project and
      checking it with LiquidHaskell. This will take a while.
 
 ## Verifying single files
@@ -24,7 +24,7 @@ used to experiment with and learn LiquidHaskell.
   2. Navigate to the `src` directory and Run `liquid` on an individual file and
      all files that are imported by that file.
 
-```
+```bash
 cd src
 liquid Heap/Heap.hs Heap/LeftistHeap.hs
 ```
@@ -34,7 +34,7 @@ liquid Heap/Heap.hs Heap/LeftistHeap.hs
 The first and perhaps simplest abstract data type presented in the book is the
 first-in-first-out queue. The interface implemented by each concrete queue provides
 functions for adding to the end, reading and removing from the front, obtaining
-an empty queue and testing if a given queue is empty. The refinement types for
+an empty queue, and testing if a given queue is empty. The refinement types for
 these functions are used to track the length of a queue and to ensure that
 `head` and `tail` are never called on empty queues.
 
@@ -76,18 +76,18 @@ data BankersQueue a = BQ {
 
 ## [Physicist's Queue](src/Queue/PhysicistsQueue.hs)
 
-The physicist's queue is similar in structure to the banker's queue but, it is
+The physicist's queue is similar in structure to the banker's queue, but it is
 instead designed for analysis using the physicist's method. The data structure
 maintains the same prefix and suffix lists as the banker's queue with the same
-constraint on the relative lengths of these lists. What distinguishes it form
+constraint on the relative lengths of these lists. What distinguishes it from
 the banker's queue is that it maintains a second prefix list. The second prefix,
-as well as being a prefix of the entire queue, must be a prefix of the original
-prefix and it must be non-empty whenever the original prefix is non-empty.
+as well as being a prefix of the entire queue, must be a prefix of the first
+prefix list and it must be non-empty whenever the original prefix is non-empty.
 
 The refinements for the first four record fields are identical to the banker's
 queue. The remaining two fields encode the more interesting second prefix list.
 The list itself is stored as `pre`. The refinement for `pre` forces the second
-prefix to be non-empty if the original prefix is not empty. The final field,
+prefix to be non-empty when the original prefix is non-empty. The final field,
 `isPrefix` encodes the actual prefix relationship between `pre` and `f`. This
 is done using an inductive predicate similar to what can be used in Coq. To do
 this in Haskell, LiquidHaskell can be used as a [theorem prover][3] which provides
@@ -97,7 +97,7 @@ the predicates.
 The inductive predicate for prefix has two cases. A list can be empty, in which
 case it is a prefix of every list. A list can be non-empty, in which case it is
 only the prefix of another list if they have same first element and the tail of
-the prefix is the prefix of the tail of the list.
+the prefix is a prefix of the tail of the list.
 
 While introducing an extra field to hold an inductive predicate is an interesting
 method for enforcing invariants, it has a significant draw back. Constructing
@@ -125,7 +125,7 @@ data List a = Nil | Cons a (List a)
 # [Sets](src/Set/Set.hs)
 
 Okasaki's book presents a very simple interface for sets. Only insertion and a
-membership predicate are required. This could, of course, be extended to support
+membership predicates are required. This could, of course, be extended to support
 other common functions over sets.
 
 The refinement types for `empty` and `insert` encode these operations in terms
@@ -144,7 +144,7 @@ class Set s a where
 
 I want to ensure that member returns true if and only if the element is in the
 set. Writing a refinement type that encodes this property is simple but, I have
-not been able to write a set implementation that checks using such a refinement type.
+not been able to write a set implementation that can be verified using such a refinement type.
 
 ```haskell
 member :: e:a -> v:s a -> {b:Bool | b <=> Set_mem e (setElts b)}
@@ -263,16 +263,16 @@ to the number of black nodes on every path from the root node to a leaf node.
 The refinement types for the `Heap` typeclass would ideally track the size of
 a heap and provide some guarantee that the element returned by `findMin` is, in
 fact, the smallest element in the heap. The current refinements only protect
-against calling `findMin` and `deleteMin` on empty heaps Individual heap
-implementations introduce their own invariants for that ensure that the minimum
+against calling `findMin` and `deleteMin` on empty heaps. Individual heap
+implementations introduce their own invariants that ensure that the minimum
 element is kept at the top.
 
 Due to issues working with LiquidHaskell, none of the heap implementations are
 actually instances of this typeclass. The functions of the typeclass are
-implemented by each heap and, the same refinement types are applied to the
-implementations but, I have not been able to able to write them as a formal
+implemented by each heap, and the same refinement types are applied to the
+implementations, but I have not been able to able to write them as a formal
 instance of the `Heap` typeclass. The interface below is what should be
-implemented when this problem is resolved.
+implemented if this problem were to be resolved.
 
 ```haskell
 class Heap h where
@@ -299,14 +299,14 @@ implementation (it has linear time insertion rather than logarithmic) but,
 writing refinement types to force an ordered list is slightly easier than doing
 the same for any of the tree based heap implementations.
 
-The property ensured for this data structure is that for list larger than the
+The property ensured for this data structure is that for lists larger than the
 singleton list the head of the list is at least as small as the head of the tail.
 This property is then recursively checked for the tail of the list.
 
 ```haskell
 data SortedListHeap a =
   Nil | Cons {
-    t :: SLH a,
+    t :: SortedListHeap a,
     h :: {v:a | IsMin v t}
   }
 predicate IsMin N H = (hsize H == 0) || (N <= hmin H)
@@ -315,7 +315,7 @@ predicate IsMin N H = (hsize H == 0) || (N <= hmin H)
 ## [Leftist Heap](src/Heap/LeftistHeap.hs)
 
 The Leftist Heap is a more legitimate heap implementation that *is* included in
-book. The data structure is a binary tree where the element at the root node
+the book. The data structure is a binary tree where the element at the root node
 is at least as small as the elements at both of the children. The Leftist Heap also
 requires that the rank (length of the shortest path to a leaf node) of the right
 sub-heap is smaller than the rank of the left sub-heap. Both of these properties
@@ -333,7 +333,7 @@ data LeftistHeap a =
 The implementation of `merge` for this heap is particularly interesting.
 LiquidHaskell was not able to verify the Leftist Heap merge function given in
 *Purely Functional Data Structures*. I believe that this was because LiquidHaskell
-could not show that minimum after merging two heaps must be the minimum of one
+could not show that the minimum after merging two heaps must be the minimum of one
 of the input heaps. I was able to encode a variant of this fact into the type
 of `merge` in a way that enabled LiquidHaskell to check the function.
 
@@ -357,7 +357,7 @@ A random-access list as presented in *Purely Functional Data Structures* is an
 extension of the usual cons-list that supports lookup and update functions like
 those you would expect to see for a traditional array. While for a queue it
 sufficed to know that the structure was not empty before retrieving the next
-element, a random access list must verify that a requested index is with the
+element, a random access list must verify that a requested index is within the
 bounds of the list before any lookup or update operation. This requirement is
 encoded in the refinement types for these functions.
 
