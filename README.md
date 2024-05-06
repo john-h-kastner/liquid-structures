@@ -1,5 +1,3 @@
-# liquid-structures
-
 This project contains Haskell implementations of data structures from Chris
 Okasaki's Book [Purely Functional Data Structures][1] with invariants statically
 checked using [LiquidHaskell][2]. The implementations are based on the those
@@ -9,6 +7,8 @@ structures that were not taken from the book. These tend to be simpler structure
 used to experiment with and learn LiquidHaskell.
 
 # Verifying the Implementations
+
+The full source code for all data structures is [available on GitHub](https://github.com/john-h-kastner/liquid-structures).
 
 ## Verify the entire project
 
